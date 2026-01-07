@@ -1,5 +1,6 @@
 # compiled binaries
 bin/
+tmp/
 
 # Mac OS X files
 .DS_Store
