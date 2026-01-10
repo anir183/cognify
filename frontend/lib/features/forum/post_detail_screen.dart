@@ -1,7 +1,10 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/providers/user_state.dart';
+import '../../core/providers/instructor_state.dart';
 import 'data/forum_state.dart';
 
 class PostDetailScreen extends ConsumerStatefulWidget {
@@ -21,6 +24,22 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   void _submitComment() {
     if (_commentController.text.trim().isEmpty) return;
 
+    // Determine author based on instructor mode provider
+    final isInstructorMode = ref.read(isInstructorModeProvider);
+
+    String authorName;
+    String authorEmoji;
+
+    if (isInstructorMode) {
+      final instructorState = ref.read(instructorStateProvider);
+      authorName = instructorState.name;
+      authorEmoji = '👨‍🏫';
+    } else {
+      final userState = ref.read(userStateProvider);
+      authorName = userState.profile.name;
+      authorEmoji = userState.profile.avatarEmoji;
+    }
+
     if (_replyingToCommentId != null) {
       ref
           .read(forumProvider.notifier)
@@ -28,11 +47,18 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             widget.postId,
             _replyingToCommentId!,
             _commentController.text,
+            authorName: authorName,
+            authorEmoji: authorEmoji,
           );
     } else {
       ref
           .read(forumProvider.notifier)
-          .addComment(widget.postId, _commentController.text);
+          .addComment(
+            widget.postId,
+            _commentController.text,
+            authorName: authorName,
+            authorEmoji: authorEmoji,
+          );
     }
 
     _commentController.clear();
@@ -81,7 +107,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

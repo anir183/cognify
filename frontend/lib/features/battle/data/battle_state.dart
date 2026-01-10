@@ -68,6 +68,58 @@ class BattleController extends Notifier<BattleState> {
       options: ["Provider", "Controller", "Bloc", "SetState"],
       correctIndex: 0,
     ),
+    Question(
+      id: "q3",
+      text: "Which widget makes another widget clickable?",
+      bossImage: "assets/boss1.png",
+      options: ["Clickable", "Button", "GestureDetector", "Touchable"],
+      correctIndex: 2,
+    ),
+    Question(
+      id: "q4",
+      text: "What is the root widget in most Flutter apps?",
+      bossImage: "assets/boss2.png",
+      options: ["Scaffold", "MaterialApp", "Container", "Column"],
+      correctIndex: 1,
+    ),
+    Question(
+      id: "q5",
+      text: "Which keyword makes a variable immutable in Dart?",
+      bossImage: "assets/boss1.png",
+      options: ["var", "let", "final", "static"],
+      correctIndex: 2,
+    ),
+    Question(
+      id: "q6",
+      text: "What does 'hot reload' do in Flutter?",
+      bossImage: "assets/boss2.png",
+      options: [
+        "Restarts the app",
+        "Updates UI without losing state",
+        "Clears cache",
+        "Compiles to APK",
+      ],
+      correctIndex: 1,
+    ),
+    Question(
+      id: "q7",
+      text: "Which widget is used to overlay widgets on top of each other?",
+      bossImage: "assets/boss1.png",
+      options: ["Column", "Row", "Stack", "Grid"],
+      correctIndex: 2,
+    ),
+    Question(
+      id: "q8",
+      text: "What is the purpose of the BuildContext?",
+      bossImage: "assets/boss2.png",
+      options: [
+        "To build widgets",
+        "To locate widgets in the tree",
+        "To manage state",
+        "To handle navigation",
+      ],
+      correctIndex: 1,
+    ),
   ];
 
   @override

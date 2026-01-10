@@ -1,7 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/providers/user_state.dart';
 import 'data/battle_state.dart';
 import 'widgets/card_deck.dart';
 import 'widgets/boss_hp_bar.dart';
@@ -88,7 +90,13 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
                                   Icons.arrow_back,
                                   color: Colors.white,
                                 ),
-                                onPressed: () => Navigator.pop(context),
+                                onPressed: () {
+                                  if (Navigator.canPop(context)) {
+                                    Navigator.pop(context);
+                                  } else {
+                                    context.go('/dashboard');
+                                  }
+                                },
                               ),
                               Text(
                                 "BOSS BATTLE",
@@ -254,7 +262,20 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        // Award XP and increment battles won
+                        ref.read(userStateProvider.notifier).addXp(150);
+                        ref
+                            .read(userStateProvider.notifier)
+                            .incrementBattlesWon();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('+150 XP earned! 🎉'),
+                            backgroundColor: Colors.amber,
+                          ),
+                        );
+                        context.go('/dashboard');
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.amber,
                         foregroundColor: Colors.black,

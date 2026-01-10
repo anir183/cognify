@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/providers/user_state.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userState = ref.watch(userStateProvider);
+    final profile = userState.profile;
+    final stats = userState.stats;
+
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
       body: SingleChildScrollView(
@@ -48,24 +54,27 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Center(
-                      child: Text("🥷", style: TextStyle(fontSize: 50)),
+                    child: Center(
+                      child: Text(
+                        profile.avatarEmoji,
+                        style: const TextStyle(fontSize: 50),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text("Cyber Ninja", style: AppTheme.headlineMedium),
+                  Text(profile.name, style: AppTheme.headlineMedium),
                   const SizedBox(height: 4),
                   Text(
-                    "@cyberninja42",
+                    "@${profile.username}",
                     style: TextStyle(color: AppTheme.textGrey),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _statItem("Level", "5"),
-                      _statItem("XP", "2,450"),
-                      _statItem("Rank", "#42"),
+                      _statItem("Level", stats.level.toString()),
+                      _statItem("XP", "${stats.currentXp}/${stats.maxXp}"),
+                      _statItem("Rank", "#${stats.globalRank}"),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -120,7 +129,7 @@ class ProfileScreen extends StatelessWidget {
                 Expanded(
                   child: _statCard(
                     "Battles Won",
-                    "12",
+                    stats.battlesWon.toString(),
                     Icons.sports_esports,
                     AppTheme.primaryCyan,
                   ),
@@ -129,7 +138,7 @@ class ProfileScreen extends StatelessWidget {
                 Expanded(
                   child: _statCard(
                     "Courses",
-                    "3",
+                    stats.courses.toString(),
                     Icons.book,
                     AppTheme.accentPurple,
                   ),
@@ -142,7 +151,7 @@ class ProfileScreen extends StatelessWidget {
                 Expanded(
                   child: _statCard(
                     "Streak",
-                    "7 days",
+                    "${stats.streak} days",
                     Icons.local_fire_department,
                     Colors.orange,
                   ),
@@ -150,9 +159,9 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _statCard(
-                    "Time",
-                    "24h",
-                    Icons.access_time,
+                    "Total XP",
+                    "${stats.currentXp + (stats.level - 1) * 1000}",
+                    Icons.bolt,
                     Colors.green,
                   ),
                 ),

@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/user_state.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userState = ref.watch(userStateProvider);
+    final settings = userState.settings;
+    final notifier = ref.read(userStateProvider.notifier);
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notifications = true;
-  bool _darkMode = true;
-  bool _soundEffects = true;
-  bool _hapticFeedback = true;
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
       appBar: AppBar(
@@ -35,8 +31,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Push Notifications',
               'Receive updates and reminders',
               Icons.notifications_outlined,
-              _notifications,
-              (val) => setState(() => _notifications = val),
+              settings.notificationsEnabled,
+              notifier.setNotificationsEnabled,
             ),
 
             const SizedBox(height: 24),
@@ -46,8 +42,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Dark Mode',
               'Use dark theme',
               Icons.dark_mode_outlined,
-              _darkMode,
-              (val) => setState(() => _darkMode = val),
+              settings.isDarkMode,
+              notifier.setDarkMode,
             ),
 
             const SizedBox(height: 24),
@@ -57,31 +53,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               'Sound Effects',
               'Play sounds for actions',
               Icons.volume_up_outlined,
-              _soundEffects,
-              (val) => setState(() => _soundEffects = val),
+              settings.soundEffects,
+              notifier.setSoundEffects,
             ),
             const SizedBox(height: 12),
             _settingsTile(
               'Haptic Feedback',
               'Vibrate on interactions',
               Icons.vibration,
-              _hapticFeedback,
-              (val) => setState(() => _hapticFeedback = val),
+              settings.hapticFeedback,
+              notifier.setHapticFeedback,
             ),
 
             const SizedBox(height: 24),
             _sectionTitle('DATA & STORAGE'),
             const SizedBox(height: 12),
-            _actionTile('Clear Cache', Icons.cleaning_services_outlined, () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Cache cleared!'),
-                  backgroundColor: AppTheme.primaryCyan,
-                ),
-              );
-            }),
+            _actionTile(
+              context,
+              'Clear Cache',
+              Icons.cleaning_services_outlined,
+              () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Cache cleared!'),
+                    backgroundColor: AppTheme.primaryCyan,
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 12),
-            _actionTile('Download Data', Icons.download_outlined, () {}),
+            _actionTile(
+              context,
+              'Download Data',
+              Icons.download_outlined,
+              () {},
+            ),
           ],
         ),
       ),
@@ -142,7 +148,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ).animate().fadeIn().slideX(begin: 0.1, end: 0);
   }
 
-  Widget _actionTile(String title, IconData icon, VoidCallback onTap) {
+  Widget _actionTile(
+    BuildContext context,
+    String title,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(

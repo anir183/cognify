@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/user_state.dart';
 
-class EditProfileScreen extends StatefulWidget {
+class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  ConsumerState<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
-  final _nameController = TextEditingController(text: 'Cyber Ninja');
-  final _usernameController = TextEditingController(text: 'cyberninja42');
-  final _bioController = TextEditingController(text: 'Learning every day!');
-  String _selectedEmoji = '🥷';
+class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
+  late TextEditingController _nameController;
+  late TextEditingController _usernameController;
+  late TextEditingController _bioController;
+  late String _selectedEmoji;
 
   final List<String> _avatarOptions = [
     '🥷',
@@ -27,6 +29,34 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final profile = ref.read(userStateProvider).profile;
+    _nameController = TextEditingController(text: profile.name);
+    _usernameController = TextEditingController(text: profile.username);
+    _bioController = TextEditingController(text: profile.bio);
+    _selectedEmoji = profile.avatarEmoji;
+  }
+
+  void _saveProfile() {
+    ref
+        .read(userStateProvider.notifier)
+        .updateProfile(
+          name: _nameController.text,
+          username: _usernameController.text,
+          bio: _bioController.text,
+          avatarEmoji: _selectedEmoji,
+        );
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Profile updated!'),
+        backgroundColor: AppTheme.primaryCyan,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
@@ -36,15 +66,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         elevation: 0,
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text('Profile updated!'),
-                  backgroundColor: AppTheme.primaryCyan,
-                ),
-              );
-            },
+            onPressed: _saveProfile,
             child: Text(
               'Save',
               style: TextStyle(

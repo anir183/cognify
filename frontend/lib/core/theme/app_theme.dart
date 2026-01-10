@@ -71,4 +71,37 @@ class AppTheme {
       ),
     ),
   );
+
+  // Light Theme
+  static const Color lightBg = Color(0xFFF5F5F7);
+  static const Color lightCard = Color(0xFFFFFFFF);
+  static const Color lightText = Color(0xFF1A1A2E);
+
+  static ThemeData get lightTheme => ThemeData.light().copyWith(
+    scaffoldBackgroundColor: lightBg,
+    primaryColor: primaryCyan,
+    colorScheme: const ColorScheme.light(
+      primary: primaryCyan,
+      secondary: accentPurple,
+      surface: lightCard,
+      onSurface: lightText,
+    ),
+    textTheme: GoogleFonts.outfitTextTheme(ThemeData.light().textTheme),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryCyan,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: lightCard,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    ),
+  );
 }

@@ -1,46 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/providers/user_state.dart';
 
-class NotificationsSheet extends StatelessWidget {
+class NotificationsSheet extends ConsumerWidget {
   const NotificationsSheet({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final notifications = [
-      {
-        'title': 'Battle Challenge!',
-        'body': 'Cyber Ninja challenges you to a duel.',
-        'time': '2m ago',
-        'icon': Icons.bolt,
-        'color': AppTheme.accentPurple,
-        'isUnread': true,
-      },
-      {
-        'title': 'Level Up!',
-        'body': 'You reached Level 5. Keep it up!',
-        'time': '2h ago',
-        'icon': Icons.arrow_upward,
-        'color': AppTheme.primaryCyan,
-        'isUnread': true,
-      },
-      {
-        'title': 'New Course Available',
-        'body': 'Mastering Flutter Animations is now live.',
-        'time': '1d ago',
-        'icon': Icons.school,
-        'color': Colors.orange,
-        'isUnread': false,
-      },
-      {
-        'title': 'Streak Saver Used',
-        'body': 'You missed a day, but your streak is safe.',
-        'time': '2d ago',
-        'icon': Icons.local_fire_department,
-        'color': Colors.red,
-        'isUnread': false,
-      },
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userState = ref.watch(userStateProvider);
+    final notifications = userState.notifications;
+    final notifier = ref.read(userStateProvider.notifier);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -68,63 +39,122 @@ class NotificationsSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text("Notifications", style: AppTheme.headlineMedium),
-              Text(
-                "Mark all read",
-                style: TextStyle(color: AppTheme.primaryCyan, fontSize: 12),
+              GestureDetector(
+                onTap: () {
+                  notifier.clearAllNotifications();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('All notifications marked as read!'),
+                      backgroundColor: AppTheme.primaryCyan,
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryCyan.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppTheme.primaryCyan.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Text(
+                    "Mark all read",
+                    style: TextStyle(
+                      color: AppTheme.primaryCyan,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 24),
           Flexible(
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: notifications.length,
-              separatorBuilder: (context, index) =>
-                  Divider(color: Colors.white.withOpacity(0.05)),
-              itemBuilder: (context, index) {
-                final notif = notifications[index];
-                return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: (notif['color'] as Color).withOpacity(0.1),
-                          shape: BoxShape.circle,
+            child: notifications.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('🔔', style: TextStyle(fontSize: 48)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No notifications',
+                          style: TextStyle(color: AppTheme.textGrey),
                         ),
-                        child: Icon(
-                          notif['icon'] as IconData,
-                          color: notif['color'] as Color,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        notif['title'] as String,
-                        style: AppTheme.bodyLarge.copyWith(
-                          fontWeight: (notif['isUnread'] as bool)
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
-                      subtitle: Text(
-                        notif['body'] as String,
-                        style: TextStyle(
-                          color: AppTheme.textGrey,
-                          fontSize: 12,
-                        ),
-                      ),
-                      trailing: Text(
-                        notif['time'] as String,
-                        style: TextStyle(
-                          color: AppTheme.textGrey,
-                          fontSize: 10,
-                        ),
-                      ),
-                    )
-                    .animate()
-                    .fadeIn(delay: (index * 50).ms)
-                    .slideX(begin: 0.1, end: 0);
-              },
-            ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: notifications.length,
+                    separatorBuilder: (context, index) =>
+                        Divider(color: Colors.white.withOpacity(0.05)),
+                    itemBuilder: (context, index) {
+                      final notif = notifications[index];
+                      return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: notif.color.withOpacity(0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                notif.icon,
+                                color: notif.color,
+                                size: 20,
+                              ),
+                            ),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    notif.title,
+                                    style: AppTheme.bodyLarge.copyWith(
+                                      fontWeight: notif.isUnread
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                                if (notif.isUnread)
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: AppTheme.primaryCyan,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            subtitle: Text(
+                              notif.body,
+                              style: TextStyle(
+                                color: AppTheme.textGrey,
+                                fontSize: 12,
+                              ),
+                            ),
+                            trailing: Text(
+                              notif.time,
+                              style: TextStyle(
+                                color: AppTheme.textGrey,
+                                fontSize: 10,
+                              ),
+                            ),
+                            onTap: () =>
+                                notifier.markNotificationRead(notif.id),
+                          )
+                          .animate()
+                          .fadeIn(delay: (index * 50).ms)
+                          .slideX(begin: 0.1, end: 0);
+                    },
+                  ),
           ),
         ],
       ),

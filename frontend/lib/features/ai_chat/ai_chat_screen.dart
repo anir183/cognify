@@ -2,6 +2,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:glass_kit/glass_kit.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 
 class ChatMessage {
@@ -121,22 +122,38 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                       .animate(onPlay: (c) => c.repeat(reverse: true))
                       .shimmer(duration: 2.seconds),
                   const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("AI Oracle", style: AppTheme.headlineMedium),
-                      Text(
-                        controller.isTyping
-                            ? "Typing..."
-                            : "Online • Ready to assist",
-                        style: TextStyle(
-                          color: controller.isTyping
-                              ? AppTheme.primaryCyan
-                              : AppTheme.textGrey,
-                          fontSize: 12,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("AI Oracle", style: AppTheme.headlineMedium),
+                        Text(
+                          controller.isTyping
+                              ? "Typing..."
+                              : "Online • Ready to assist",
+                          style: TextStyle(
+                            color: controller.isTyping
+                                ? AppTheme.primaryCyan
+                                : AppTheme.textGrey,
+                            fontSize: 12,
+                          ),
                         ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => context.go('/dashboard'),
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryCyan.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
+                      child: const Icon(
+                        Icons.home_rounded,
+                        color: AppTheme.primaryCyan,
+                      ),
+                    ),
                   ),
                 ],
               ),

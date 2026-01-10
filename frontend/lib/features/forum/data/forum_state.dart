@@ -121,18 +121,25 @@ class ForumState {
   final List<ForumPost> posts;
   final String sortBy;
   final String currentUserId;
+  final Set<String> savedPostIds;
 
   ForumState({
     required this.posts,
     this.sortBy = 'hot',
     this.currentUserId = 'currentUser',
-  });
+    Set<String>? savedPostIds,
+  }) : savedPostIds = savedPostIds ?? {};
 
-  ForumState copyWith({List<ForumPost>? posts, String? sortBy}) {
+  ForumState copyWith({
+    List<ForumPost>? posts,
+    String? sortBy,
+    Set<String>? savedPostIds,
+  }) {
     return ForumState(
       posts: posts ?? this.posts,
       sortBy: sortBy ?? this.sortBy,
       currentUserId: currentUserId,
+      savedPostIds: savedPostIds ?? this.savedPostIds,
     );
   }
 }
@@ -378,13 +385,19 @@ class ForumController extends Notifier<ForumState> {
     }).toList();
   }
 
-  void addReply(String postId, String parentCommentId, String text) {
+  void addReply(
+    String postId,
+    String parentCommentId,
+    String text, {
+    String? authorName,
+    String? authorEmoji,
+  }) {
     if (text.trim().isEmpty) return;
     final newReply = Comment(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: text,
-      author: 'You',
-      avatarEmoji: '🧑',
+      author: authorName ?? 'You',
+      avatarEmoji: authorEmoji ?? '🧑',
       createdAt: DateTime.now(),
       parentId: parentCommentId,
     );
@@ -423,13 +436,18 @@ class ForumController extends Notifier<ForumState> {
     }).toList();
   }
 
-  void addComment(String postId, String text) {
+  void addComment(
+    String postId,
+    String text, {
+    String? authorName,
+    String? authorEmoji,
+  }) {
     if (text.trim().isEmpty) return;
     final newComment = Comment(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: text,
-      author: 'You',
-      avatarEmoji: '🧑',
+      author: authorName ?? 'You',
+      avatarEmoji: authorEmoji ?? '🧑',
       createdAt: DateTime.now(),
     );
     state = state.copyWith(
@@ -445,13 +463,19 @@ class ForumController extends Notifier<ForumState> {
     );
   }
 
-  void addPost(String title, String content, List<String> tags) {
+  void addPost(
+    String title,
+    String content,
+    List<String> tags, {
+    String? authorName,
+    String? authorEmoji,
+  }) {
     final newPost = ForumPost(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: title,
       content: content,
-      author: 'You',
-      avatarEmoji: '🧑',
+      author: authorName ?? 'You',
+      avatarEmoji: authorEmoji ?? '🧑',
       upvotes: 1,
       downvotes: 0,
       commentCount: 0,
@@ -460,6 +484,18 @@ class ForumController extends Notifier<ForumState> {
     );
     state = state.copyWith(posts: [newPost, ...state.posts]);
   }
+
+  void toggleSavePost(String postId) {
+    final newSaved = Set<String>.from(state.savedPostIds);
+    if (newSaved.contains(postId)) {
+      newSaved.remove(postId);
+    } else {
+      newSaved.add(postId);
+    }
+    state = state.copyWith(savedPostIds: newSaved);
+  }
+
+  bool isPostSaved(String postId) => state.savedPostIds.contains(postId);
 
   void setSortBy(String sort) {
     state = state.copyWith(sortBy: sort);

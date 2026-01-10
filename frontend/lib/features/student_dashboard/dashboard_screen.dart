@@ -1,7 +1,9 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/providers/user_state.dart';
 import 'data/mock_data.dart';
 import 'widgets/xp_bar.dart';
 import 'widgets/stats_grid.dart';
@@ -10,11 +12,16 @@ import 'widgets/mastery_pie_chart.dart';
 import 'widgets/course_card.dart';
 import 'widgets/notifications_sheet.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userState = ref.watch(userStateProvider);
+    final profile = userState.profile;
+    final stats = userState.stats;
+    final hasUnread = userState.notifications.any((n) => n.isUnread);
+
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
       body: SafeArea(
@@ -35,7 +42,7 @@ class DashboardScreen extends StatelessWidget {
                           color: AppTheme.textGrey,
                         ),
                       ),
-                      Text("Cyber Ninja", style: AppTheme.headlineMedium),
+                      Text(profile.name, style: AppTheme.headlineMedium),
                     ],
                   ),
                   GestureDetector(
@@ -65,18 +72,19 @@ class DashboardScreen extends StatelessWidget {
                             Icons.notifications_outlined,
                             color: Colors.white,
                           ),
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
+                          if (hasUnread)
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
                             ),
-                          ),
                         ],
                       ),
                     ),
@@ -84,11 +92,11 @@ class DashboardScreen extends StatelessWidget {
                 ],
               ).animate().fadeIn().slideY(begin: -0.2, end: 0),
               const SizedBox(height: 24),
-              const XpBar(
-                level: 5,
-                currentXp: 350,
-                maxXp: 1000,
-                rank: "Cyber Ninja",
+              XpBar(
+                level: stats.level,
+                currentXp: stats.currentXp,
+                maxXp: stats.maxXp,
+                rank: profile.name,
               ),
               const SizedBox(height: 24),
               const StatsGrid(),
