@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_service.dart';
 
 // User Profile
 class UserProfile {
@@ -210,23 +211,6 @@ class UserStateNotifier extends Notifier<UserState> {
     );
   }
 
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isDarkMode = prefs.getBool('isDarkMode') ?? true;
-    final notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
-    final soundEffects = prefs.getBool('soundEffects') ?? true;
-    final hapticFeedback = prefs.getBool('hapticFeedback') ?? true;
-
-    state = state.copyWith(
-      settings: AppSettings(
-        isDarkMode: isDarkMode,
-        notificationsEnabled: notificationsEnabled,
-        soundEffects: soundEffects,
-        hapticFeedback: hapticFeedback,
-      ),
-    );
-  }
-
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isDarkMode', state.settings.isDarkMode);
@@ -238,13 +222,108 @@ class UserStateNotifier extends Notifier<UserState> {
     await prefs.setBool('hapticFeedback', state.settings.hapticFeedback);
   }
 
+  Future<void> _saveProfile() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('profile_name', state.profile.name);
+    await prefs.setString('profile_username', state.profile.username);
+    await prefs.setString('profile_bio', state.profile.bio);
+    await prefs.setString('profile_avatar', state.profile.avatarEmoji);
+
+    await prefs.setInt('stats_level', state.stats.level);
+    await prefs.setInt('stats_xp', state.stats.currentXp);
+    await prefs.setInt('stats_max_xp', state.stats.maxXp);
+    await prefs.setInt('stats_battles', state.stats.battlesWon);
+    await prefs.setInt('stats_courses', state.stats.courses);
+    await prefs.setInt('stats_streak', state.stats.streak);
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Load Settings
+    final isDarkMode = prefs.getBool('isDarkMode') ?? true;
+    final notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
+    final soundEffects = prefs.getBool('soundEffects') ?? true;
+    final hapticFeedback = prefs.getBool('hapticFeedback') ?? true;
+
+    // Load Profile
+    final name = prefs.getString('profile_name');
+    final username = prefs.getString('profile_username');
+    final bio = prefs.getString('profile_bio');
+    final avatarEmoji = prefs.getString('profile_avatar');
+
+    // Load Stats
+    final level = prefs.getInt('stats_level');
+    final currentXp = prefs.getInt('stats_xp');
+    final maxXp = prefs.getInt('stats_max_xp');
+    final battlesWon = prefs.getInt('stats_battles');
+    final courses = prefs.getInt('stats_courses');
+    final streak = prefs.getInt('stats_streak');
+
+    var newState = state.copyWith(
+      settings: AppSettings(
+        isDarkMode: isDarkMode,
+        notificationsEnabled: notificationsEnabled,
+        soundEffects: soundEffects,
+        hapticFeedback: hapticFeedback,
+      ),
+    );
+
+    if (name != null) {
+      newState = newState.copyWith(
+        profile: UserProfile(
+          name: name,
+          username: username ?? 'user',
+          bio: bio ?? 'Learning every day!',
+          avatarEmoji: avatarEmoji ?? '🥷',
+        ),
+        stats: UserStats(
+          level: level ?? 1,
+          currentXp: currentXp ?? 0,
+          maxXp: maxXp ?? 1000,
+          battlesWon: battlesWon ?? 0,
+          courses: courses ?? 0,
+          streak: streak ?? 0,
+          globalRank: 42, // Keeping mock for now
+        ),
+      );
+    }
+
+    state = newState;
+  }
+
+  // User Methods
+  void setUser(Map<String, dynamic> userData) {
+    if (userData.isEmpty) return;
+
+    state = state.copyWith(
+      profile: state.profile.copyWith(
+        name: userData['name'] ?? 'User',
+        username: userData['username'] ?? 'user',
+        avatarEmoji: userData['avatarEmoji'] ?? '🥷',
+      ),
+      stats: state.stats.copyWith(
+        level: userData['level'] ?? 1,
+        currentXp: userData['xp'] ?? 0,
+        // Mock other stats for now as they might not be in the user model yet
+        battlesWon: 0,
+        courses: 0,
+        streak: 0,
+        globalRank: 0,
+      ),
+    );
+    _saveProfile();
+  }
+
   // Profile Methods
-  void updateProfile({
+  Future<void> updateProfile({
     String? name,
     String? username,
     String? bio,
     String? avatarEmoji,
-  }) {
+  }) async {
+    // Optimistic update
+    final oldState = state;
     state = state.copyWith(
       profile: state.profile.copyWith(
         name: name,
@@ -253,6 +332,37 @@ class UserStateNotifier extends Notifier<UserState> {
         avatarEmoji: avatarEmoji,
       ),
     );
+    _saveProfile();
+
+    try {
+      // Sync with backend
+      // We need the email/ID to identify the user.
+      // Assuming 'username' or we should store 'email' in profile too?
+      // Wait, UserProfile doesn't have email.
+      // We usually store email in UserState or get it from SharedPreferences.
+      // Let's check if we have email.
+
+      final prefs = await SharedPreferences.getInstance();
+      final email = prefs.getString(
+        'user_email',
+      ); // We need to ensure we save this on login
+
+      if (email != null) {
+        await ApiService.post('/api/update-profile', {
+          'id': email,
+          'name': state.profile.name,
+          'username': state.profile.username,
+          'bio': state.profile.bio,
+          'avatarEmoji': state.profile.avatarEmoji,
+        });
+      } else {
+        debugPrint('Warning: No email found for profile update');
+      }
+    } catch (e) {
+      debugPrint('Error updating profile on backend: $e');
+      // Revert on error? Or just show error?
+      // For now, let's keep local changes but log error.
+    }
   }
 
   // Settings Methods

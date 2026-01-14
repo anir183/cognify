@@ -3,12 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:glass_kit/glass_kit.dart';
 import 'package:go_router/go_router.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 import '../../core/theme/app_theme.dart';
+import '../../core/services/api_service.dart';
 
 class ChatMessage {
   final String text;
   final bool isUser;
-  ChatMessage({required this.text, required this.isUser});
+  final String? imagePath; // For display on mobile
+  final Uint8List? imageBytes; // For web and sending to API
+  ChatMessage({
+    required this.text,
+    required this.isUser,
+    this.imagePath,
+    this.imageBytes,
+  });
 }
 
 class ChatController extends Notifier<List<ChatMessage>> {
@@ -26,25 +37,84 @@ class ChatController extends Notifier<List<ChatMessage>> {
   bool _isTyping = false;
   bool get isTyping => _isTyping;
 
-  void sendMessage(String text) {
-    if (text.trim().isEmpty) return;
-    state = [...state, ChatMessage(text: text, isUser: true)];
+  // Build conversation context from previous messages (last 6 messages)
+  String _buildContext() {
+    final messages = state;
+    if (messages.length <= 1) return '';
+
+    final recentMessages = messages.length > 6
+        ? messages.sublist(messages.length - 6)
+        : messages;
+
+    return recentMessages
+        .map((m) {
+          return m.isUser ? 'User: ${m.text}' : 'Oracle: ${m.text}';
+        })
+        .join('\n');
+  }
+
+  Future<void> sendMessage(
+    String text, {
+    Uint8List? imageBytes,
+    String? imageName,
+  }) async {
+    if (text.trim().isEmpty && imageBytes == null) return;
+
+    String displayText = text;
+    if (imageBytes != null) {
+      displayText = text.isEmpty
+          ? '[Image attached]'
+          : '$text\n[Image attached]';
+    }
+
+    state = [
+      ...state,
+      ChatMessage(text: displayText, isUser: true, imageBytes: imageBytes),
+    ];
     _isTyping = true;
     ref.notifyListeners();
 
-    // Simulate AI response with delay
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    try {
+      Map<String, dynamic> response;
+
+      if (imageBytes != null) {
+        // Use image-chat endpoint for image analysis
+        response = await ApiService.postMultipart(
+          '/api/ai/image-chat',
+          imageBytes: imageBytes,
+          filename: imageName ?? 'image.jpg',
+          message: text,
+        );
+      } else {
+        // Use regular chat endpoint
+        final context = _buildContext();
+        response = await ApiService.post('/api/ai/chat', {
+          'message': text,
+          'context': context,
+        });
+      }
+
+      if (response['success'] == true && response['response'] != null) {
+        state = [
+          ...state,
+          ChatMessage(text: response['response'], isUser: false),
+        ];
+      } else {
+        state = [
+          ...state,
+          ChatMessage(
+            text:
+                "I'm having trouble connecting to the ether. Please try again.",
+            isUser: false,
+          ),
+        ];
+      }
+    } catch (e) {
+      state = [...state, ChatMessage(text: "Error: $e", isUser: false)];
+    } finally {
       _isTyping = false;
-      final responses = [
-        "Interesting question! Let me enlighten you...",
-        "The ancient scrolls speak of this...",
-        "Ah, a curious mind! Here's what I know...",
-        "Your pursuit of knowledge is admirable. Consider this...",
-        "The Oracle sees great potential in you. The answer lies within...",
-      ];
-      final response = responses[(state.length) % responses.length];
-      state = [...state, ChatMessage(text: response, isUser: false)];
-    });
+      ref.notifyListeners();
+    }
   }
 }
 
@@ -63,6 +133,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  // Voice input
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+
+  // Image picker - store bytes for cross-platform compatibility
+  final ImagePicker _imagePicker = ImagePicker();
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageName;
+
   final List<String> _suggestions = [
     "Explain Flutter widgets",
     "Quiz me on Dart",
@@ -70,10 +149,95 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     "What is state management?",
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _speech = stt.SpeechToText();
+  }
+
   void _sendMessage(String text) {
-    ref.read(chatProvider.notifier).sendMessage(text);
+    ref
+        .read(chatProvider.notifier)
+        .sendMessage(
+          text,
+          imageBytes: _selectedImageBytes,
+          imageName: _selectedImageName,
+        );
     _controller.clear();
+    setState(() {
+      _selectedImageBytes = null;
+      _selectedImageName = null;
+    });
     _scrollToBottom();
+  }
+
+  Future<void> _toggleListening() async {
+    if (_isListening) {
+      await _speech.stop();
+      setState(() => _isListening = false);
+    } else {
+      bool available = await _speech.initialize(
+        onError: (error) {
+          debugPrint('Speech error: $error');
+          setState(() => _isListening = false);
+        },
+        onStatus: (status) {
+          debugPrint('Speech status: $status');
+          if (status == 'notListening' || status == 'done') {
+            setState(() => _isListening = false);
+          }
+        },
+      );
+      debugPrint('Speech available: $available');
+      if (available) {
+        setState(() => _isListening = true);
+        await _speech.listen(
+          onResult: (result) {
+            setState(() {
+              _controller.text = result.recognizedWords;
+            });
+          },
+        );
+      } else {
+        // Show snackbar if speech not available
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Speech recognition not available. Please check microphone permissions.',
+              ),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+      );
+      if (image != null) {
+        // Read bytes for cross-platform compatibility
+        final bytes = await image.readAsBytes();
+        setState(() {
+          _selectedImageBytes = bytes;
+          _selectedImageName = image.name;
+        });
+      }
+    } catch (e) {
+      debugPrint('Image picker error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _scrollToBottom() {
@@ -217,6 +381,44 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               ),
             ),
 
+            // Image Preview (if selected)
+            if (_selectedImageBytes != null)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                color: AppTheme.cardColor.withOpacity(0.5),
+                child: Row(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        _selectedImageBytes!,
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _selectedImageName ?? 'Image attached',
+                        style: const TextStyle(color: Colors.white70),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white54),
+                      onPressed: () => setState(() {
+                        _selectedImageBytes = null;
+                        _selectedImageName = null;
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+
             // Input Area
             GlassContainer(
               height: 80,
@@ -230,18 +432,46 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               color: AppTheme.cardColor.withOpacity(0.8),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 12,
                   vertical: 12,
                 ),
                 child: Row(
                   children: [
+                    // Image Button
+                    IconButton(
+                      icon: Icon(
+                        Icons.image_outlined,
+                        color: _selectedImageBytes != null
+                            ? AppTheme.primaryCyan
+                            : AppTheme.textGrey,
+                      ),
+                      onPressed: _pickImage,
+                    ),
+                    // Voice Button
+                    IconButton(
+                      icon: Icon(
+                        _isListening ? Icons.mic : Icons.mic_none,
+                        color: _isListening ? Colors.red : AppTheme.textGrey,
+                      ),
+                      onPressed: _toggleListening,
+                    ),
                     Expanded(
                       child: TextField(
                         controller: _controller,
                         style: const TextStyle(color: Colors.white),
+                        maxLines: 4,
+                        minLines: 1,
+                        keyboardType: TextInputType.multiline,
+                        textInputAction: TextInputAction.newline,
                         decoration: InputDecoration(
-                          hintText: "Ask the Oracle...",
-                          hintStyle: TextStyle(color: AppTheme.textGrey),
+                          hintText: _isListening
+                              ? "Listening..."
+                              : "Ask the Oracle...",
+                          hintStyle: TextStyle(
+                            color: _isListening
+                                ? Colors.red.shade200
+                                : AppTheme.textGrey,
+                          ),
                           filled: true,
                           fillColor: Colors.black.withOpacity(0.3),
                           border: OutlineInputBorder(
@@ -253,10 +483,9 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                             vertical: 12,
                           ),
                         ),
-                        onSubmitted: _sendMessage,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => _sendMessage(_controller.text),
                       child: Container(

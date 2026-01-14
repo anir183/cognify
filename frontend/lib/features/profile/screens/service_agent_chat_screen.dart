@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/api_service.dart';
 
 class ChatAgentMessage {
   final String text;
@@ -28,32 +29,64 @@ class ServiceAgentChatNotifier extends Notifier<List<ChatAgentMessage>> {
 
   bool isTyping = false;
 
-  void sendMessage(String text) {
+  // Build conversation context from previous messages
+  String _buildContext() {
+    final messages = state;
+    if (messages.length <= 1) return '';
+
+    final recentMessages = messages.length > 6
+        ? messages.sublist(messages.length - 6)
+        : messages;
+
+    return recentMessages
+        .map((m) {
+          return m.isAgent ? 'Sarah: ${m.text}' : 'User: ${m.text}';
+        })
+        .join('\n');
+  }
+
+  Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
     state = [...state, ChatAgentMessage(text: text, isAgent: false)];
-    _generateAgentResponse(text);
-  }
-
-  Future<void> _generateAgentResponse(String userMessage) async {
     isTyping = true;
     ref.notifyListeners();
 
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final context = _buildContext();
+      final response = await ApiService.post('/api/support/chat', {
+        'message': text,
+        'context': context,
+      });
 
-    final responses = [
-      "I understand your concern. Let me look into that for you.",
-      "That's a great question! Here's what you need to know...",
-      "I can definitely help you with that. One moment please.",
-      "Thank you for reaching out. I'll resolve this for you right away.",
-      "I see. Let me check our system and get back to you.",
-      "No worries! This is a common issue. Here's the solution...",
-    ];
-
-    final response = responses[DateTime.now().millisecond % responses.length];
-    state = [...state, ChatAgentMessage(text: response, isAgent: true)];
-    isTyping = false;
-    ref.notifyListeners();
+      if (response['success'] == true && response['response'] != null) {
+        state = [
+          ...state,
+          ChatAgentMessage(text: response['response'], isAgent: true),
+        ];
+      } else {
+        state = [
+          ...state,
+          ChatAgentMessage(
+            text:
+                "I'm sorry, I'm having trouble connecting. Please try again or contact us directly at support@cognify.app.",
+            isAgent: true,
+          ),
+        ];
+      }
+    } catch (e) {
+      state = [
+        ...state,
+        ChatAgentMessage(
+          text:
+              "Sorry, I couldn't process your request. Please try again later.",
+          isAgent: true,
+        ),
+      ];
+    } finally {
+      isTyping = false;
+      ref.notifyListeners();
+    }
   }
 }
 

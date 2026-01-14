@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:glass_kit/glass_kit.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/services/api_service.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -17,6 +18,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   double _passwordStrength = 0.0;
   String _passwordStrengthText = "";
@@ -237,14 +239,53 @@ class _SignupScreenState extends State<SignupScreen> {
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
-                                onPressed: () {
+                                onPressed: () async {
                                   if (_formKey.currentState!.validate()) {
-                                    context.go(
-                                      '/otp-verification?email=${_emailController.text}',
-                                    );
+                                    setState(() {
+                                      _isLoading = true;
+                                    });
+                                    try {
+                                      await ApiService.post('/api/signup', {
+                                        'email': _emailController.text.trim(),
+                                        'role': 'student',
+                                        'name': _nameController.text.trim(),
+                                      });
+                                      if (mounted) {
+                                        context.go(
+                                          '/otp-verification',
+                                          extra: _emailController.text.trim(),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Signup Failed: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    } finally {
+                                      if (mounted) {
+                                        setState(() {
+                                          _isLoading = false;
+                                        });
+                                      }
+                                    }
                                   }
                                 },
-                                child: const Text("CREATE ACCOUNT"),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Text("CREATE ACCOUNT"),
                               ),
                             ),
                             const SizedBox(height: 16),
