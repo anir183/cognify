@@ -3,18 +3,24 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:glass_kit/glass_kit.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/providers/user_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
-class OtpVerificationScreen extends StatefulWidget {
+class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String email;
 
   const OtpVerificationScreen({super.key, required this.email});
 
   @override
-  State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
+  ConsumerState<OtpVerificationScreen> createState() =>
+      _OtpVerificationScreenState();
 }
 
-class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
+class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   final List<TextEditingController> _otpControllers = List.generate(
     6,
     (index) => TextEditingController(),
@@ -36,7 +42,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   String get _otp => _otpControllers.map((c) => c.text).join();
 
-  void _verifyOtp() {
+  Future<void> _verifyOtp() async {
     if (_otp.length != 6) {
       setState(() {
         _errorMessage = 'Please enter all 6 digits';
@@ -49,33 +55,84 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       _errorMessage = null;
     });
 
-    // Simulate OTP verification (replace with actual API call)
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-
-      // For demo purposes, accept any 6-digit OTP
-      // In production, validate against backend
-      setState(() {
-        _isLoading = false;
+    try {
+      final response = await ApiService.post('/api/verify', {
+        'email': widget.email,
+        'code': _otp,
       });
 
-      // Navigate to dashboard on success
-      context.go('/dashboard');
-    });
+      if (response['success'] == true) {
+        // Save token and user data
+        final prefs = await SharedPreferences.getInstance();
+        if (response['token'] != null) {
+          await prefs.setString('token', response['token']);
+        }
+        await prefs.setString(
+          'user_email',
+          widget.email,
+        ); // Save email for updates
+
+        // Sync user data to state
+        if (response['user'] != null) {
+          debugPrint('DEBUG: Setting user data: ${response['user']}');
+          ref.read(userStateProvider.notifier).setUser(response['user']);
+        } else {
+          debugPrint('DEBUG: No user data in response: $response');
+        }
+
+        if (mounted) {
+          context.go('/dashboard');
+        }
+      } else {
+        setState(() {
+          _errorMessage = response['message'] ?? 'Verification failed';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Error: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
-  void _resendOtp() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'OTP resent to ${widget.email}',
-          style: const TextStyle(color: Colors.white),
-        ),
-        backgroundColor: AppTheme.primaryCyan.withOpacity(0.8),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+  Future<void> _resendOtp() async {
+    setState(() {
+      _errorMessage = null;
+    });
+
+    try {
+      await ApiService.post('/api/login', {
+        'email': widget.email,
+        'role': 'student', // Default or pass from prev screen
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'OTP resent to ${widget.email}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: AppTheme.primaryCyan.withOpacity(0.8),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to resend: $e';
+        });
+      }
+    }
   }
 
   @override
