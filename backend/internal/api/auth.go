@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -171,6 +172,28 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			respondJSON(w, http.StatusInternalServerError, AuthResponse{Success: false, Message: "Failed to create user"})
 			return
+		}
+
+		// Initialize user_stats for leaderboard
+		newStats := map[string]interface{}{
+			"userId":           req.Email,
+			"name":             newUser["name"],
+			"avatarEmoji":      newUser["avatarEmoji"],
+			"totalXp":          0,
+			"level":            1,
+			"battlesWon":       0,
+			"battlesPlayed":    0,
+			"coursesCompleted": 0,
+			"coursesEnrolled":  0,
+			"currentStreak":    0,
+			"longestStreak":    0,
+			"globalRank":       0,
+			"forumPosts":       0,
+			"forumComments":    0,
+		}
+		_, err = db.FirestoreClient.Collection("user_stats").Doc(req.Email).Set(r.Context(), newStats)
+		if err != nil {
+			log.Printf("Failed to initialize user stats for %s: %v", req.Email, err)
 		}
 	}
 

@@ -23,18 +23,22 @@ type UserAchievement struct {
 
 // UserStats contains detailed user statistics
 type UserStats struct {
-	UserID           string `json:"userId" firestore:"userId"`
-	TotalXP          int    `json:"totalXp" firestore:"totalXp"`
-	Level            int    `json:"level" firestore:"level"`
-	BattlesWon       int    `json:"battlesWon" firestore:"battlesWon"`
-	BattlesPlayed    int    `json:"battlesPlayed" firestore:"battlesPlayed"`
-	CoursesCompleted int    `json:"coursesCompleted" firestore:"coursesCompleted"`
-	CoursesEnrolled  int    `json:"coursesEnrolled" firestore:"coursesEnrolled"`
-	CurrentStreak    int    `json:"currentStreak" firestore:"currentStreak"`
-	LongestStreak    int    `json:"longestStreak" firestore:"longestStreak"`
-	GlobalRank       int    `json:"globalRank" firestore:"globalRank"`
-	ForumPosts       int    `json:"forumPosts" firestore:"forumPosts"`
-	ForumComments    int    `json:"forumComments" firestore:"forumComments"`
+	UserID           string         `json:"userId" firestore:"userId"`
+	Name             string         `json:"name" firestore:"name"`               // Denormalized from users
+	AvatarEmoji      string         `json:"avatarEmoji" firestore:"avatarEmoji"` // Denormalized from users
+	TotalXP          int            `json:"totalXp" firestore:"totalXp"`
+	Level            int            `json:"level" firestore:"level"`
+	BattlesWon       int            `json:"battlesWon" firestore:"battlesWon"`
+	BattlesPlayed    int            `json:"battlesPlayed" firestore:"battlesPlayed"`
+	CoursesCompleted int            `json:"coursesCompleted" firestore:"coursesCompleted"`
+	CoursesEnrolled  int            `json:"coursesEnrolled" firestore:"coursesEnrolled"`
+	CurrentStreak    int            `json:"currentStreak" firestore:"currentStreak"`
+	LongestStreak    int            `json:"longestStreak" firestore:"longestStreak"`
+	GlobalRank       int            `json:"globalRank" firestore:"globalRank"`
+	ForumPosts       int            `json:"forumPosts" firestore:"forumPosts"`
+	ForumComments    int            `json:"forumComments" firestore:"forumComments"`
+	WeeklyXP         []int          `json:"weeklyXp" firestore:"weeklyXp"`           // Last 7 days XP
+	CategoryStats    map[string]int `json:"categoryStats" firestore:"categoryStats"` // XP by category (Flutter, Python, etc.)
 }
 
 // LeaderboardEntry represents a user's position on the leaderboard

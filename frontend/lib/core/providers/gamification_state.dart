@@ -71,6 +71,8 @@ class UserStats {
   final int globalRank;
   final int forumPosts;
   final int forumComments;
+  final List<int> weeklyXp;
+  final Map<String, int> categoryStats;
 
   UserStats({
     this.totalXp = 0,
@@ -84,6 +86,8 @@ class UserStats {
     this.globalRank = 42,
     this.forumPosts = 0,
     this.forumComments = 0,
+    this.weeklyXp = const [0, 0, 0, 0, 0, 0, 0],
+    this.categoryStats = const {},
   });
 
   factory UserStats.fromJson(Map<String, dynamic> json) {
@@ -99,6 +103,8 @@ class UserStats {
       globalRank: json['globalRank'] ?? 42,
       forumPosts: json['forumPosts'] ?? 0,
       forumComments: json['forumComments'] ?? 0,
+      weeklyXp: List<int>.from(json['weeklyXp']?.map((x) => x) ?? []),
+      categoryStats: Map<String, int>.from(json['categoryStats'] ?? {}),
     );
   }
 }
