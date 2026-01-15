@@ -37,8 +37,11 @@ type UserStats struct {
 	GlobalRank       int            `json:"globalRank" firestore:"globalRank"`
 	ForumPosts       int            `json:"forumPosts" firestore:"forumPosts"`
 	ForumComments    int            `json:"forumComments" firestore:"forumComments"`
-	WeeklyXP         []int          `json:"weeklyXp" firestore:"weeklyXp"`           // Last 7 days XP
-	CategoryStats    map[string]int `json:"categoryStats" firestore:"categoryStats"` // XP by category (Flutter, Python, etc.)
+	WeeklyXP         []int          `json:"weeklyXp" firestore:"weeklyXp"`               // Last 7 days XP
+	CategoryStats    map[string]int `json:"categoryStats" firestore:"categoryStats"`     // XP by category (Flutter, Python, etc.)
+	WeakPoints       []string       `json:"weakPoints" firestore:"weakPoints"`           // Topics user struggles with (AI-detected)
+	StrongPoints     []string       `json:"strongPoints" firestore:"strongPoints"`       // Topics user excels at (AI-detected)
+	ConfidenceScore  int            `json:"confidenceScore" firestore:"confidenceScore"` // User's overall confidence (0-100)
 }
 
 // LeaderboardEntry represents a user's position on the leaderboard

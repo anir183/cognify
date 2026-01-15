@@ -156,6 +156,51 @@ func EnrollCourseHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetUserEnrollmentsHandler returns all enrollments for a user
+func GetUserEnrollmentsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.URL.Query().Get("userId")
+	if userID == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "User ID is required",
+		})
+		return
+	}
+
+	if db.FirestoreClient == nil {
+		respondJSON(w, http.StatusOK, map[string]interface{}{
+			"success":     true,
+			"enrollments": []map[string]interface{}{},
+		})
+		return
+	}
+
+	ctx := r.Context()
+	iter := db.FirestoreClient.Collection("enrollments").Where("userId", "==", userID).Documents(ctx)
+	docs, err := iter.GetAll()
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Failed to fetch enrollments",
+		})
+		return
+	}
+
+	var enrollments []map[string]interface{}
+	for _, doc := range docs {
+		data := doc.Data()
+		enrollments = append(enrollments, data)
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success":     true,
+		"enrollments": enrollments,
+	})
+}
+
 func getCourses(ctx context.Context) ([]models.Course, error) {
 	if db.FirestoreClient == nil {
 		return mockCourses, nil

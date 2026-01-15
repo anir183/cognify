@@ -6,6 +6,9 @@ import '../../features/onboarding/onboarding_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/signup_screen.dart';
 import '../../features/auth/otp_verification_screen.dart';
+import '../../features/auth/forgot_password_screen.dart';
+import '../../features/auth/reset_password_otp_screen.dart';
+import '../../features/auth/reset_password_screen.dart';
 import '../../features/student_dashboard/dashboard_screen.dart';
 import '../../features/ai_chat/ai_chat_screen.dart';
 import '../../features/battle/battle_screen.dart';
@@ -14,6 +17,7 @@ import '../../features/forum/forum_screen.dart';
 import '../../features/forum/create_post_screen.dart';
 import '../../features/forum/post_detail_screen.dart';
 import '../../features/course_detail/course_detail_screen.dart';
+import '../../features/learning/lesson_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/profile/screens/settings_screen.dart';
@@ -44,6 +48,9 @@ const _publicRoutes = [
   '/login',
   '/signup',
   '/otp-verification',
+  '/forgot-password',
+  '/reset-password-otp',
+  '/reset-password',
   '/instructor/login',
   '/instructor/signup',
 ];
@@ -127,9 +134,40 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password-otp',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final email = extra['email'] as String? ?? '';
+          return ResetPasswordOtpScreen(email: email);
+        },
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final email = extra['email'] as String? ?? '';
+          return ResetPasswordScreen(email: email);
+        },
+      ),
+      GoRoute(
         path: '/course/:id',
         builder: (context, state) =>
             CourseDetailScreen(courseId: state.pathParameters['id'] ?? '1'),
+      ),
+      GoRoute(
+        path: '/course/:courseId/level/:levelId',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return LessonScreen(
+            courseId: state.pathParameters['courseId'] ?? '',
+            levelId: state.pathParameters['levelId'] ?? '',
+            levelTitle: extra['levelTitle'] as String? ?? 'Lesson',
+          );
+        },
       ),
       GoRoute(
         path: '/forum/create',

@@ -42,6 +42,11 @@ func CloseGemini() {
 	}
 }
 
+// GetGeminiModel returns the initialized Gemini model (or nil if not initialized)
+func GetGeminiModel() *genai.GenerativeModel {
+	return geminiModel
+}
+
 // ChatWithAI sends a message to Gemini and returns the response
 func ChatWithAI(ctx context.Context, message string, context string) (string, error) {
 	if geminiModel == nil {

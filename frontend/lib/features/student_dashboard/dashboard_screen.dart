@@ -5,13 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/gamification_state.dart';
 import '../../core/providers/user_state.dart';
-import 'data/mock_data.dart';
+
 import 'widgets/xp_bar.dart';
 import 'widgets/stats_grid.dart';
 import 'widgets/progress_chart.dart';
 import 'widgets/mastery_pie_chart.dart';
 import 'widgets/course_card.dart';
 import 'widgets/notifications_sheet.dart';
+import 'package:cognify/features/explore/data/explore_state.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -24,6 +25,15 @@ class DashboardScreen extends ConsumerWidget {
 
     final gamification = ref.watch(gamificationProvider);
     final stats = gamification.userStats;
+
+    final exploreState = ref.watch(exploreProvider);
+    final myCourses = exploreState.courses
+        .where(
+          (c) =>
+              c.status == CourseStatus.enrolled ||
+              c.status == CourseStatus.ongoing,
+        )
+        .toList();
 
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
@@ -141,10 +151,10 @@ class DashboardScreen extends ConsumerWidget {
                   Expanded(
                     child: _actionButton(
                       context,
-                      icon: Icons.play_arrow,
-                      label: "Continue",
-                      color: AppTheme.primaryCyan,
-                      onTap: () => context.go('/battle'),
+                      icon: Icons.forum,
+                      label: "Forum",
+                      color: Colors.blue,
+                      onTap: () => context.go('/forum'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -178,22 +188,30 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               SizedBox(
                 height: 180,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: MockData.trendingCourses.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 16),
-                  itemBuilder: (context, index) {
-                    final course = MockData.trendingCourses[index];
-                    return GestureDetector(
-                      onTap: () => context.go('/course/${course.id}'),
-                      child: CourseCard(course: course)
-                          .animate()
-                          .fadeIn(delay: (100 * index).ms)
-                          .slideX(begin: 0.1, end: 0),
-                    );
-                  },
-                ),
+                child: myCourses.isEmpty
+                    ? Center(
+                        child: Text(
+                          "No active courses yet. Start exploring!",
+                          style: TextStyle(color: AppTheme.textGrey),
+                        ),
+                      )
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        itemCount: myCourses.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 16),
+                        itemBuilder: (context, index) {
+                          final course = myCourses[index];
+                          return GestureDetector(
+                            onTap: () => context.go('/course/${course.id}'),
+                            child: CourseCard(course: course)
+                                .animate()
+                                .fadeIn(delay: (100 * index).ms)
+                                .slideX(begin: 0.1, end: 0),
+                          );
+                        },
+                      ),
               ),
               const SizedBox(height: 100),
             ],

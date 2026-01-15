@@ -1,6 +1,24 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import '../../../../core/constants/api_constants.dart';
+import '../../../core/providers/user_state.dart';
 
 enum CourseStatus { available, enrolled, ongoing, completed }
+
+class AIRecommendation {
+  final String courseId;
+  final String reason;
+
+  AIRecommendation({required this.courseId, required this.reason});
+
+  factory AIRecommendation.fromJson(Map<String, dynamic> json) {
+    return AIRecommendation(
+      courseId: json['courseId'] ?? '',
+      reason: json['reason'] ?? '',
+    );
+  }
+}
 
 class Course {
   final String id;
@@ -14,6 +32,8 @@ class Course {
   final String instructor;
   final int lessons;
   final int duration; // in hours
+  final String? recommendationReason; // Populated if recommended
+  final int difficultyRating; // 1-5 scale
 
   Course({
     required this.id,
@@ -27,9 +47,36 @@ class Course {
     this.instructor = 'Unknown',
     this.lessons = 10,
     this.duration = 5,
+    this.recommendationReason,
+    this.difficultyRating = 3,
   });
 
-  Course copyWith({CourseStatus? status, double? progress}) {
+  factory Course.fromJson(Map<String, dynamic> json) {
+    return Course(
+      id: json['id'] ?? '',
+      title: json['title'] ?? 'Untitled',
+      subtitle: json['subtitle'] ?? '',
+      emoji: json['emoji'] ?? '📚',
+      colorHex: json['colorHex'] ?? '0xFF00F5FF',
+      progress: (json['progress'] ?? 0.0).toDouble(),
+      status: CourseStatus.values.firstWhere(
+        (e) => e.toString().split('.').last == (json['status'] ?? 'available'),
+        orElse: () => CourseStatus.available,
+      ),
+      price: (json['price'] ?? 0).toDouble(),
+      instructor: json['instructorId'] ?? 'Unknown',
+      lessons: (json['levels'] as List?)?.length ?? 10,
+      duration: 5,
+      difficultyRating: json['difficultyRating'] ?? 3,
+    );
+  }
+
+  Course copyWith({
+    CourseStatus? status,
+    double? progress,
+    String? recommendationReason,
+    int? difficultyRating,
+  }) {
     return Course(
       id: id,
       title: title,
@@ -42,20 +89,36 @@ class Course {
       instructor: instructor,
       lessons: lessons,
       duration: duration,
+      recommendationReason: recommendationReason ?? this.recommendationReason,
+      difficultyRating: difficultyRating ?? this.difficultyRating,
     );
   }
 }
 
 class ExploreState {
   final List<Course> courses;
+  final List<AIRecommendation> recommendations;
   final String filter; // all, enrolled, ongoing, completed
+  final bool isLoading;
 
-  ExploreState({required this.courses, this.filter = 'all'});
+  ExploreState({
+    required this.courses,
+    this.recommendations = const [],
+    this.filter = 'all',
+    this.isLoading = false,
+  });
 
-  ExploreState copyWith({List<Course>? courses, String? filter}) {
+  ExploreState copyWith({
+    List<Course>? courses,
+    List<AIRecommendation>? recommendations,
+    String? filter,
+    bool? isLoading,
+  }) {
     return ExploreState(
       courses: courses ?? this.courses,
+      recommendations: recommendations ?? this.recommendations,
       filter: filter ?? this.filter,
+      isLoading: isLoading ?? this.isLoading,
     );
   }
 
@@ -69,100 +132,156 @@ class ExploreState {
       return courses.where((c) => c.status == CourseStatus.completed).toList();
     return courses;
   }
+
+  List<Course> get recommendedCourses {
+    // Map recommendations to actual course objects
+    List<Course> recs = [];
+    for (var r in recommendations) {
+      try {
+        final course = courses.firstWhere((c) => c.id == r.courseId);
+        recs.add(course.copyWith(recommendationReason: r.reason));
+      } catch (_) {}
+    }
+    return recs;
+  }
 }
 
 class ExploreController extends Notifier<ExploreState> {
   @override
   ExploreState build() {
-    return ExploreState(
-      courses: [
-        Course(
-          id: '1',
-          title: 'Flutter Mastery',
-          subtitle: 'Build beautiful apps',
-          emoji: '🚀',
-          colorHex: '0xFF00F5FF',
-          progress: 0.65,
-          status: CourseStatus.ongoing,
-          price: 49.99,
-          instructor: 'John Flutter',
-          lessons: 24,
-          duration: 12,
+    // Initial fetch
+    Future.microtask(() => _fetchData());
+    return ExploreState(courses: [], isLoading: true);
+  }
+
+  Future<void> _fetchData() async {
+    state = state.copyWith(isLoading: true);
+    await _fetchCourses();
+    await _fetchEnrollments(); // Sync enrollment status from backend
+    await _fetchRecommendations();
+    state = state.copyWith(isLoading: false);
+  }
+
+  Future<void> _fetchCourses() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConstants.baseUrl}/courses'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        // Assuming API returns { "courses": [...] } or direct list. Main.go says GetCoursesHandler.
+        // Usually wrapped in success or list.
+        // Let's assume list for now or check handler implementation.
+        // Assuming array of courses for now based on standard impl, or Wrapped.
+        // Wait, boilerplate handler usually returns JSON map.
+        // If `respondJSON(w, http.StatusOK, courses)` -> it's a list.
+        // If `respondJSON(w, http.StatusOK, map[string]interface{"courses": courses})` -> it's wrapped.
+        // I'll assume wrapped "courses" or check user's other handlers.
+
+        List<dynamic> list = [];
+        if (data is Map && data.containsKey('courses')) {
+          list = data['courses'];
+        } else if (data is List) {
+          list = data;
+        }
+
+        final courses = list.map((c) => Course.fromJson(c)).toList();
+        state = state.copyWith(courses: courses);
+      }
+    } catch (e) {
+      print("Error fetching courses: $e");
+    }
+  }
+
+  Future<void> _fetchRecommendations() async {
+    final userId = ref.read(userStateProvider).profile.id;
+    if (userId.isEmpty) return;
+
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConstants.baseUrl}/courses/recommendations?userId=$userId',
         ),
-        Course(
-          id: '2',
-          title: 'AI Basics',
-          subtitle: 'Machine Learning 101',
-          emoji: '🤖',
-          colorHex: '0xFFBF00FF',
-          progress: 0.0,
-          status: CourseStatus.available,
-          price: 79.99,
-          instructor: 'AI Master',
-          lessons: 18,
-          duration: 8,
-        ),
-        Course(
-          id: '3',
-          title: 'Web Development',
-          subtitle: 'HTML, CSS, JS',
-          emoji: '🌐',
-          colorHex: '0xFFFF00A0',
-          progress: 1.0,
-          status: CourseStatus.completed,
-          price: 39.99,
-          instructor: 'Web Wizard',
-          lessons: 30,
-          duration: 15,
-        ),
-        Course(
-          id: '4',
-          title: 'Data Science',
-          subtitle: 'Python & Stats',
-          emoji: '📊',
-          colorHex: '0xFF00FF7F',
-          progress: 0.3,
-          status: CourseStatus.ongoing,
-          price: 89.99,
-          instructor: 'Data Guru',
-          lessons: 22,
-          duration: 10,
-        ),
-        Course(
-          id: '5',
-          title: 'Cybersecurity',
-          subtitle: 'Ethical Hacking',
-          emoji: '🔐',
-          colorHex: '0xFFFF6B35',
-          progress: 0.0,
-          status: CourseStatus.available,
-          price: 99.99,
-          instructor: 'Sec Expert',
-          lessons: 20,
-          duration: 12,
-        ),
-        Course(
-          id: '6',
-          title: 'Mobile Design',
-          subtitle: 'UI/UX Principles',
-          emoji: '🎨',
-          colorHex: '0xFFE040FB',
-          progress: 0.0,
-          status: CourseStatus.enrolled,
-          price: 59.99,
-          instructor: 'Design Pro',
-          lessons: 16,
-          duration: 6,
-        ),
-      ],
-    );
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['recommendations'] != null) {
+          final list = data['recommendations'] as List;
+          final recs = list.map((r) => AIRecommendation.fromJson(r)).toList();
+          state = state.copyWith(recommendations: recs);
+        }
+      }
+    } catch (e) {
+      print("Error fetching recommendations: $e");
+    }
   }
 
   void setFilter(String filter) {
     state = state.copyWith(filter: filter);
   }
 
-  void enrollCourse(String courseId) {
+  Future<void> _fetchEnrollments() async {
+    final userId = ref.read(userStateProvider).profile.id;
+    if (userId.isEmpty) return;
+
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConstants.baseUrl}/user/enrollments?userId=$userId'),
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true && data['enrollments'] != null) {
+          final enrollments = List<Map<String, dynamic>>.from(
+            data['enrollments'],
+          );
+
+          // Update course statuses based on enrollments
+          state = state.copyWith(
+            courses: state.courses.map((c) {
+              final enrollment = enrollments.firstWhere(
+                (e) => e['courseId'] == c.id,
+                orElse: () => <String, dynamic>{},
+              );
+              if (enrollment.isNotEmpty) {
+                final progress = (enrollment['progress'] ?? 0.0).toDouble();
+                final completed = enrollment['completed'] == true;
+
+                CourseStatus newStatus;
+                if (completed) {
+                  newStatus = CourseStatus.completed;
+                } else if (progress > 0) {
+                  newStatus = CourseStatus.ongoing;
+                } else {
+                  newStatus = CourseStatus.enrolled;
+                }
+
+                return c.copyWith(status: newStatus, progress: progress);
+              }
+              return c;
+            }).toList(),
+          );
+        }
+      }
+    } catch (e) {
+      print("Error fetching enrollments: $e");
+    }
+  }
+
+  void enrollCourse(String courseId) async {
+    final userId = ref.read(userStateProvider).profile.id;
+
+    // Call backend API to enroll
+    try {
+      await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/courses/enroll'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'userId': userId, 'courseId': courseId}),
+      );
+    } catch (e) {
+      print("Error enrolling course: $e");
+    }
+
+    // Update local state
     state = state.copyWith(
       courses: state.courses.map((c) {
         if (c.id == courseId && c.status == CourseStatus.available) {

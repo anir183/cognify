@@ -47,6 +47,28 @@ class _BattleScreenState extends ConsumerState<BattleScreen> {
     final currentQuestion = controller.currentQuestion;
     final screenHeight = MediaQuery.of(context).size.height;
 
+    if (battleState.isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.bgBlack,
+        body: const Center(
+          child: CircularProgressIndicator(color: AppTheme.primaryCyan),
+        ),
+      );
+    }
+
+    if (currentQuestion == null) {
+      return Scaffold(
+        backgroundColor: AppTheme.bgBlack,
+        appBar: AppBar(backgroundColor: Colors.transparent),
+        body: const Center(
+          child: Text(
+            "No battle questions available.",
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
       body: Stack(

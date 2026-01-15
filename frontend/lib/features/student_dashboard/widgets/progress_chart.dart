@@ -12,10 +12,13 @@ class ProgressChart extends ConsumerWidget {
     final userStats = ref.watch(gamificationProvider).userStats;
     final weeklyXp = userStats.weeklyXp;
 
-    // Ensure we have 7 days of data
-    final List<int> data = weeklyXp.length >= 7
+    // Ensure we have 7 days of data and reverse it for chronological order (Oldest -> Newest)
+    final List<int> rawData = weeklyXp.length >= 7
         ? weeklyXp.take(7).toList()
         : List<int>.filled(7, 0);
+
+    // Backend sends [Today, Yesterday, ...]. We need [6 days ago, ..., Today]
+    final List<int> data = rawData.reversed.toList();
 
     return Container(
       height: 200,
@@ -28,9 +31,23 @@ class ProgressChart extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "WEEKLY XP",
-            style: AppTheme.labelLarge.copyWith(color: AppTheme.primaryCyan),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "WEEKLY XP",
+                style: AppTheme.labelLarge.copyWith(
+                  color: AppTheme.primaryCyan,
+                ),
+              ),
+              Text(
+                "${data.reduce((a, b) => a + b)} XP",
+                style: TextStyle(
+                  color: AppTheme.textGrey,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Expanded(
@@ -51,13 +68,22 @@ class ProgressChart extends ConsumerWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-                        if (value.toInt() < days.length) {
-                          return Text(
-                            days[value.toInt()],
-                            style: TextStyle(
-                              color: AppTheme.textGrey,
-                              fontSize: 12,
+                        final index = value.toInt();
+                        if (index >= 0 && index < 7) {
+                          // Calculate date: Today - (6 - index) days
+                          // index 6 is Today (0 days ago)
+                          // index 0 is 6 days ago
+                          final date = DateTime.now().subtract(
+                            Duration(days: 6 - index),
+                          );
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              "${date.day}", // Just the day number
+                              style: TextStyle(
+                                color: AppTheme.textGrey,
+                                fontSize: 12,
+                              ),
                             ),
                           );
                         }

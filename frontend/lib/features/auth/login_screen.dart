@@ -156,7 +156,20 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               style: const TextStyle(color: Colors.white),
                             ),
-                            const SizedBox(height: 32),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () => context.go('/forgot-password'),
+                                child: Text(
+                                  "Forgot Password?",
+                                  style: TextStyle(
+                                    color: AppTheme.primaryCyan,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(

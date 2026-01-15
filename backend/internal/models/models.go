@@ -20,15 +20,28 @@ type User struct {
 }
 
 type Course struct {
-	ID           string    `json:"id" firestore:"id"`
-	Title        string    `json:"title" firestore:"title"`
-	Subtitle     string    `json:"subtitle" firestore:"subtitle"`
-	Description  string    `json:"description" firestore:"description"`
-	Emoji        string    `json:"emoji" firestore:"emoji"`
-	ColorHex     string    `json:"colorHex" firestore:"colorHex"`
-	Tags         []string  `json:"tags" firestore:"tags"`
-	InstructorID string    `json:"instructorId" firestore:"instructorId"`
-	CreatedAt    time.Time `json:"createdAt" firestore:"createdAt"`
+	ID               string        `json:"id" firestore:"id"`
+	Title            string        `json:"title" firestore:"title"`
+	Subtitle         string        `json:"subtitle" firestore:"subtitle"`
+	Description      string        `json:"description" firestore:"description"`
+	Emoji            string        `json:"emoji" firestore:"emoji"`
+	ColorHex         string        `json:"colorHex" firestore:"colorHex"`
+	Tags             []string      `json:"tags" firestore:"tags"`
+	InstructorID     string        `json:"instructorId" firestore:"instructorId"`
+	DifficultyRating int           `json:"difficultyRating" firestore:"difficultyRating"` // 1-5 or similar
+	Prerequisites    []string      `json:"prerequisites" firestore:"prerequisites"`
+	LearningOutcomes string        `json:"learningOutcomes" firestore:"learningOutcomes"`
+	Levels           []CourseLevel `json:"levels" firestore:"levels"` // Ordered list of lessons
+	CreatedAt        time.Time     `json:"createdAt" firestore:"createdAt"`
+}
+
+// CourseLevel represents a single lesson/module within a course
+type CourseLevel struct {
+	ID        string   `json:"id" firestore:"id"`
+	Title     string   `json:"title" firestore:"title"`
+	Content   string   `json:"content" firestore:"content"`     // Markdown text for reading
+	VideoURL  string   `json:"videoUrl" firestore:"videoUrl"`   // YouTube embed URL
+	Questions []string `json:"questions" firestore:"questions"` // Question IDs for the battle
 }
 
 type Enrollment struct {
@@ -83,4 +96,37 @@ type Certificate struct {
 	Skills      []string  `json:"skills" firestore:"skills"`
 	Message     string    `json:"message" firestore:"message"`
 	PDFUrl      string    `json:"pdfUrl" firestore:"pdfUrl"`
+}
+
+// Question represents a battle question
+type Question struct {
+	ID           string   `json:"id" firestore:"id"`
+	Text         string   `json:"text" firestore:"text"`
+	Options      []string `json:"options" firestore:"options"`
+	CorrectIndex int      `json:"correctIndex" firestore:"correctIndex"`
+	Difficulty   string   `json:"difficulty" firestore:"difficulty"` // "Easy", "Medium", "Hard", "Boss"
+	Topic        string   `json:"topic" firestore:"topic"`           // e.g. "Dart", "Flutter", "State Management"
+	Explanation  string   `json:"explanation" firestore:"explanation"`
+	Points       int      `json:"points" firestore:"points"`
+	TimeLimit    int      `json:"timeLimit" firestore:"timeLimit"`
+}
+
+// BattleHistory tracks a user's battle performance
+type BattleHistory struct {
+	ID          string    `json:"id" firestore:"id"`
+	UserID      string    `json:"userId" firestore:"userId"`
+	QuestionIDs []string  `json:"questionIds" firestore:"questionIds"`
+	Score       int       `json:"score" firestore:"score"`
+	Outcome     string    `json:"outcome" firestore:"outcome"` // "Victory", "Defeat"
+	WeakPoints  []string  `json:"weakPoints" firestore:"weakPoints"`
+	PlayedAt    time.Time `json:"playedAt" firestore:"playedAt"`
+}
+
+// AIRecommendation represents a course recommendation
+type AIRecommendation struct {
+	ID          string    `json:"id" firestore:"id"`
+	UserID      string    `json:"userId" firestore:"userId"`
+	CourseID    string    `json:"courseId" firestore:"courseId"` // Linked course ID
+	Reason      string    `json:"reason" firestore:"reason"`     // "Why this was chosen"
+	GeneratedAt time.Time `json:"generatedAt" firestore:"generatedAt"`
 }
