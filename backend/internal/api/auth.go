@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -12,12 +13,14 @@ import (
 	"cache-crew/cognify/internal/services"
 
 	"cloud.google.com/go/firestore"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // LoginRequest represents the login request body
 type LoginRequest struct {
-	Email string `json:"email"`
-	Role  string `json:"role"` // "student" or "instructor"
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"` // "student" or "instructor"
 }
 
 // VerifyOTPRequest represents the OTP verification request body
@@ -58,17 +61,32 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user exists
-	exists, err := checkUserExists(r.Context(), req.Email)
+	// Check if user exists and get password
+	var user models.User
+	doc, err := db.FirestoreClient.Collection("users").Doc(req.Email).Get(r.Context())
 	if err != nil {
+		// Assume user not found or error
+		respondJSON(w, http.StatusNotFound, AuthResponse{Success: false, Message: "User not found. Please sign up."})
+		return
+	}
+	if err := doc.DataTo(&user); err != nil {
 		respondJSON(w, http.StatusInternalServerError, AuthResponse{Success: false, Message: "Database error"})
 		return
 	}
-	if !exists {
-		respondJSON(w, http.StatusNotFound, AuthResponse{
-			Success: false,
-			Message: "User not found. Please sign up first.",
-		})
+
+	// Verify Password
+	if user.Password == "" {
+		// Allow legacy login if user has no password enabled?
+		// User requested SECURITY flaw fix. So strict.
+		// But for now, if no password set, maybe allow?
+		// No, user specifically complained about "anyone can log in".
+		// So force password check.
+		respondJSON(w, http.StatusUnauthorized, AuthResponse{Success: false, Message: "Password authentication required. Please contact support or reset password."})
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		respondJSON(w, http.StatusUnauthorized, AuthResponse{Success: false, Message: "Invalid email or password"})
 		return
 	}
 
@@ -103,7 +121,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, AuthResponse{
 		Success: true,
-		Message: "OTP sent to your email. Valid for 180 seconds.",
+		Message: "Password verified. OTP sent to your email.",
 	})
 }
 
@@ -125,18 +143,58 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user already exists
-	exists, err := checkUserExists(r.Context(), req.Email)
+	// Hash password
+	hashedPwd, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, AuthResponse{Success: false, Message: "Database error"})
+		respondJSON(w, http.StatusInternalServerError, AuthResponse{Success: false, Message: "Failed to process password"})
 		return
 	}
-	if exists {
-		respondJSON(w, http.StatusConflict, AuthResponse{
-			Success: false,
-			Message: "User already exists. Please login.",
-		})
-		return
+
+	// Create user with hashed password (marked as unverified implicitly by lack of token usage initially, but we allow Login flow to handle 2FA)
+	// We create the user doc now so Login can verify the password.
+	newUser := map[string]interface{}{
+		"id":        req.Email,
+		"email":     req.Email,
+		"role":      req.Role,
+		"password":  string(hashedPwd),
+		"createdAt": time.Now(),
+		"updatedAt": time.Now(),
+		// Add default fields to prevent nil issues later
+		"xp":          0,
+		"level":       1,
+		"avatarEmoji": "🥷",
+		"name":        "User", // Simplified name extraction
+		"username":    req.Email,
+	}
+
+	if db.FirestoreClient != nil {
+		_, err = db.FirestoreClient.Collection("users").Doc(req.Email).Set(r.Context(), newUser)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, AuthResponse{Success: false, Message: "Failed to create user"})
+			return
+		}
+
+		// Initialize user_stats for leaderboard
+		newStats := map[string]interface{}{
+			"userId":           req.Email,
+			"name":             newUser["name"],
+			"avatarEmoji":      newUser["avatarEmoji"],
+			"totalXp":          0,
+			"level":            1,
+			"battlesWon":       0,
+			"battlesPlayed":    0,
+			"coursesCompleted": 0,
+			"coursesEnrolled":  0,
+			"currentStreak":    0,
+			"longestStreak":    0,
+			"globalRank":       0,
+			"forumPosts":       0,
+			"forumComments":    0,
+		}
+		_, err = db.FirestoreClient.Collection("user_stats").Doc(req.Email).Set(r.Context(), newStats)
+		if err != nil {
+			log.Printf("Failed to initialize user stats for %s: %v", req.Email, err)
+		}
 	}
 
 	// Generate and Send OTP

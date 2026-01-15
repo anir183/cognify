@@ -30,7 +30,7 @@ func InitGemini(ctx context.Context) error {
 		return nil
 	}
 
-	geminiModel = geminiClient.GenerativeModel("gemini-3-flash-preview")
+	geminiModel = geminiClient.GenerativeModel("gemini-2.5-flash-lite")
 	log.Println("Gemini AI initialized successfully")
 	return nil
 }
@@ -40,6 +40,11 @@ func CloseGemini() {
 	if geminiClient != nil {
 		geminiClient.Close()
 	}
+}
+
+// GetGeminiModel returns the initialized Gemini model (or nil if not initialized)
+func GetGeminiModel() *genai.GenerativeModel {
+	return geminiModel
 }
 
 // ChatWithAI sends a message to Gemini and returns the response
@@ -107,8 +112,8 @@ func ChatWithImage(ctx context.Context, message string, imageData []byte, mimeTy
 		return "[Mock Vision Response] I can see you've uploaded an image. In a live session, I would analyze it for you!", nil
 	}
 
-	// Use the vision-capable model (gemini-3-flash-preview supports vision)
-	visionModel := geminiClient.GenerativeModel("gemini-3-flash-preview")
+	// Use the model specified by user
+	visionModel := geminiClient.GenerativeModel("gemini-2.5-flash-lite")
 
 	// System instruction for image analysis
 	systemInstruction := "You are 'The Oracle', an AI learning assistant with vision capabilities. " +
@@ -140,7 +145,8 @@ func ChatWithImage(ctx context.Context, message string, imageData []byte, mimeTy
 	resp, err := visionModel.GenerateContent(ctx, textPart, imagePart)
 	if err != nil {
 		log.Printf("DEBUG: Gemini Vision error: %v\n", err)
-		return "", err
+		// Return error as message so it appears in chat
+		return fmt.Sprintf("I encountered an issue analyzing this image: %v. Please make sure the AI model is valid.", err), nil
 	}
 
 	var result strings.Builder
@@ -154,6 +160,11 @@ func ChatWithImage(ctx context.Context, message string, imageData []byte, mimeTy
 
 	finalResult := result.String()
 	log.Printf("DEBUG: Vision result length: %d\n", len(finalResult))
+
+	if finalResult == "" {
+		return "I analyzed the image but couldn't generate a description. Please try asking a specific question about it!", nil
+	}
+
 	return finalResult, nil
 }
 

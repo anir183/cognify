@@ -156,7 +156,20 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               style: const TextStyle(color: Colors.white),
                             ),
-                            const SizedBox(height: 32),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () => context.go('/forgot-password'),
+                                child: Text(
+                                  "Forgot Password?",
+                                  style: TextStyle(
+                                    color: AppTheme.primaryCyan,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
                             SizedBox(
                               width: double.infinity,
                               child: ElevatedButton(
@@ -172,6 +185,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                             await ApiService.post('/api/login', {
                                               'email': _emailController.text
                                                   .trim(),
+                                              'password':
+                                                  _passwordController.text,
                                               'role':
                                                   'student', // Default to student
                                             });
@@ -179,8 +194,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                             if (mounted) {
                                               context.go(
                                                 '/otp-verification',
-                                                extra: _emailController.text
-                                                    .trim(),
+                                                extra: {
+                                                  'email': _emailController.text
+                                                      .trim(),
+                                                  'password':
+                                                      _passwordController.text,
+                                                },
                                               );
                                             }
                                           } catch (e) {

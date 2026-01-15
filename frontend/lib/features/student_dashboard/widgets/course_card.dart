@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
-import '../data/mock_data.dart';
+import 'package:cognify/features/explore/data/explore_state.dart';
 
 class CourseCard extends StatelessWidget {
   final Course course;

@@ -5,12 +5,14 @@ import '../services/api_service.dart';
 
 // User Profile
 class UserProfile {
+  final String id;
   final String name;
   final String username;
   final String bio;
   final String avatarEmoji;
 
   const UserProfile({
+    this.id = '',
     this.name = 'Cyber Ninja',
     this.username = 'cyberninja42',
     this.bio = 'Learning every day!',
@@ -18,12 +20,14 @@ class UserProfile {
   });
 
   UserProfile copyWith({
+    String? id,
     String? name,
     String? username,
     String? bio,
     String? avatarEmoji,
   }) {
     return UserProfile(
+      id: id ?? this.id,
       name: name ?? this.name,
       username: username ?? this.username,
       bio: bio ?? this.bio,
@@ -70,6 +74,8 @@ class UserStats {
   final int courses;
   final int streak;
   final int globalRank;
+  final int confidenceScore;
+  final List<int> weeklyXp;
 
   const UserStats({
     this.level = 5,
@@ -79,6 +85,8 @@ class UserStats {
     this.courses = 3,
     this.streak = 7,
     this.globalRank = 42,
+    this.confidenceScore = 0,
+    this.weeklyXp = const [],
   });
 
   UserStats copyWith({
@@ -89,6 +97,8 @@ class UserStats {
     int? courses,
     int? streak,
     int? globalRank,
+    int? confidenceScore,
+    List<int>? weeklyXp,
   }) {
     return UserStats(
       level: level ?? this.level,
@@ -98,6 +108,8 @@ class UserStats {
       courses: courses ?? this.courses,
       streak: streak ?? this.streak,
       globalRank: globalRank ?? this.globalRank,
+      confidenceScore: confidenceScore ?? this.confidenceScore,
+      weeklyXp: weeklyXp ?? this.weeklyXp,
     );
   }
 }
@@ -224,6 +236,7 @@ class UserStateNotifier extends Notifier<UserState> {
 
   Future<void> _saveProfile() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('profile_id', state.profile.id);
     await prefs.setString('profile_name', state.profile.name);
     await prefs.setString('profile_username', state.profile.username);
     await prefs.setString('profile_bio', state.profile.bio);
@@ -247,6 +260,7 @@ class UserStateNotifier extends Notifier<UserState> {
     final hapticFeedback = prefs.getBool('hapticFeedback') ?? true;
 
     // Load Profile
+    final id = prefs.getString('profile_id');
     final name = prefs.getString('profile_name');
     final username = prefs.getString('profile_username');
     final bio = prefs.getString('profile_bio');
@@ -272,6 +286,7 @@ class UserStateNotifier extends Notifier<UserState> {
     if (name != null) {
       newState = newState.copyWith(
         profile: UserProfile(
+          id: id ?? '',
           name: name,
           username: username ?? 'user',
           bio: bio ?? 'Learning every day!',
@@ -298,6 +313,7 @@ class UserStateNotifier extends Notifier<UserState> {
 
     state = state.copyWith(
       profile: state.profile.copyWith(
+        id: userData['id'] ?? userData['email'] ?? '',
         name: userData['name'] ?? 'User',
         username: userData['username'] ?? 'user',
         avatarEmoji: userData['avatarEmoji'] ?? '🥷',
@@ -309,7 +325,13 @@ class UserStateNotifier extends Notifier<UserState> {
         battlesWon: 0,
         courses: 0,
         streak: 0,
-        globalRank: 0,
+        globalRank: userData['globalRank'] ?? 0,
+        confidenceScore: userData['confidenceScore'] ?? 0,
+        weeklyXp:
+            (userData['weeklyXp'] as List<dynamic>?)
+                ?.map((e) => e as int)
+                .toList() ??
+            [],
       ),
     );
     _saveProfile();

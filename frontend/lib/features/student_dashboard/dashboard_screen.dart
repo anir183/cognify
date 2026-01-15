@@ -3,14 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/providers/gamification_state.dart';
 import '../../core/providers/user_state.dart';
-import 'data/mock_data.dart';
+
 import 'widgets/xp_bar.dart';
 import 'widgets/stats_grid.dart';
 import 'widgets/progress_chart.dart';
 import 'widgets/mastery_pie_chart.dart';
 import 'widgets/course_card.dart';
 import 'widgets/notifications_sheet.dart';
+import 'package:cognify/features/explore/data/explore_state.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -19,8 +21,19 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userState = ref.watch(userStateProvider);
     final profile = userState.profile;
-    final stats = userState.stats;
     final hasUnread = userState.notifications.any((n) => n.isUnread);
+
+    final gamification = ref.watch(gamificationProvider);
+    final stats = gamification.userStats;
+
+    final exploreState = ref.watch(exploreProvider);
+    final myCourses = exploreState.courses
+        .where(
+          (c) =>
+              c.status == CourseStatus.enrolled ||
+              c.status == CourseStatus.ongoing,
+        )
+        .toList();
 
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
@@ -45,57 +58,78 @@ class DashboardScreen extends ConsumerWidget {
                       Text(profile.name, style: AppTheme.headlineMedium),
                     ],
                   ),
-                  GestureDetector(
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        backgroundColor: Colors.transparent,
-                        isScrollControlled: true,
-                        builder: (context) => DraggableScrollableSheet(
-                          initialChildSize: 0.6,
-                          minChildSize: 0.4,
-                          maxChildSize: 0.9,
-                          builder: (_, controller) =>
-                              const NotificationsSheet(),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.cardColor,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Stack(
-                        children: [
-                          const Icon(
-                            Icons.notifications_outlined,
-                            color: Colors.white,
+                  Row(
+                    children: [
+                      // Leaderboard button
+                      GestureDetector(
+                        onTap: () => context.push('/leaderboard'),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardColor,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          if (hasUnread)
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                        ],
+                          child: const Icon(
+                            Icons.emoji_events_outlined,
+                            color: Colors.amber,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      // Notifications button
+                      GestureDetector(
+                        onTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            backgroundColor: Colors.transparent,
+                            isScrollControlled: true,
+                            builder: (context) => DraggableScrollableSheet(
+                              initialChildSize: 0.6,
+                              minChildSize: 0.4,
+                              maxChildSize: 0.9,
+                              builder: (_, controller) =>
+                                  const NotificationsSheet(),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.cardColor,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Stack(
+                            children: [
+                              const Icon(
+                                Icons.notifications_outlined,
+                                color: Colors.white,
+                              ),
+                              if (hasUnread)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ).animate().fadeIn().slideY(begin: -0.2, end: 0),
               const SizedBox(height: 24),
               XpBar(
                 level: stats.level,
-                currentXp: stats.currentXp,
-                maxXp: stats.maxXp,
+                currentXp: stats.totalXp % 1000,
+                maxXp: 1000,
                 rank: profile.name,
               ),
               const SizedBox(height: 24),
@@ -117,10 +151,10 @@ class DashboardScreen extends ConsumerWidget {
                   Expanded(
                     child: _actionButton(
                       context,
-                      icon: Icons.play_arrow,
-                      label: "Continue",
-                      color: AppTheme.primaryCyan,
-                      onTap: () => context.go('/battle'),
+                      icon: Icons.forum,
+                      label: "Forum",
+                      color: Colors.blue,
+                      onTap: () => context.go('/forum'),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -154,22 +188,30 @@ class DashboardScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               SizedBox(
                 height: 180,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: MockData.trendingCourses.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 16),
-                  itemBuilder: (context, index) {
-                    final course = MockData.trendingCourses[index];
-                    return GestureDetector(
-                      onTap: () => context.go('/course/${course.id}'),
-                      child: CourseCard(course: course)
-                          .animate()
-                          .fadeIn(delay: (100 * index).ms)
-                          .slideX(begin: 0.1, end: 0),
-                    );
-                  },
-                ),
+                child: myCourses.isEmpty
+                    ? Center(
+                        child: Text(
+                          "No active courses yet. Start exploring!",
+                          style: TextStyle(color: AppTheme.textGrey),
+                        ),
+                      )
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        itemCount: myCourses.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 16),
+                        itemBuilder: (context, index) {
+                          final course = myCourses[index];
+                          return GestureDetector(
+                            onTap: () => context.go('/course/${course.id}'),
+                            child: CourseCard(course: course)
+                                .animate()
+                                .fadeIn(delay: (100 * index).ms)
+                                .slideX(begin: 0.1, end: 0),
+                          );
+                        },
+                      ),
               ),
               const SizedBox(height: 100),
             ],

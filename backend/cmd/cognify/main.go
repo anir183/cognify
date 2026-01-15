@@ -73,12 +73,33 @@ func main() {
 		r.Post("/verify", api.VerifyOTPHandler)
 		r.Get("/debug/otp", api.DebugOTPHandler) // Remove in production
 
+		// Password Reset routes (public)
+		r.Post("/forgot-password", api.ForgotPasswordHandler)
+		r.Post("/verify-reset-otp", api.VerifyResetOTPHandler)
+		r.Post("/reset-password", api.ResetPasswordHandler)
+
 		// Course routes (public)
 		r.Get("/courses", api.GetCoursesHandler)
 		r.Get("/course", api.GetCourseHandler)
+		r.Get("/user/enrollments", api.GetUserEnrollmentsHandler)
 
 		// Forum routes (public read)
 		r.Get("/posts", api.GetPostsHandler)
+		r.Get("/posts/comments", api.GetCommentsHandler)
+
+		// Gamification routes (public read)
+		r.Get("/achievements", api.GetAchievementsHandler)
+		r.Get("/achievements", api.GetAchievementsHandler)
+		r.Get("/leaderboard", api.GetLeaderboardHandler)
+		r.Post("/seed-data", api.SeedDataHandler) // Dev only - seeds test data
+
+		// AI Recommendations & Battles
+		r.Get("/courses/recommendations", api.GetRecommendationsHandler)
+		r.Get("/battles/questions", api.GetBattleQuestionsHandler)
+		r.Post("/seed-battle-data", api.SeedBattleDataHandler)
+
+		// Lesson Completion (Student Progress)
+		r.Post("/course/level/complete", api.CompleteLessonHandler)
 
 		// Protected routes
 		r.Group(func(r chi.Router) {
@@ -91,6 +112,8 @@ func main() {
 			r.Post("/posts", api.CreatePostHandler)
 			r.Post("/posts/vote", api.VotePostHandler)
 			r.Post("/posts/comment", api.AddCommentHandler)
+			r.Post("/posts/comment/vote", api.VoteCommentHandler)
+			r.Post("/posts/view", api.IncrementViewHandler)
 
 			// AI routes (protected - login required)
 			r.Post("/ai/chat", api.ChatHandler)
@@ -100,6 +123,8 @@ func main() {
 
 			// User routes
 			r.Post("/update-profile", api.UpdateProfileHandler)
+			r.Get("/user/stats", api.GetUserStatsHandler)
+			r.Get("/user/achievements", api.GetUserAchievementsHandler)
 		})
 
 		// Instructor routes
