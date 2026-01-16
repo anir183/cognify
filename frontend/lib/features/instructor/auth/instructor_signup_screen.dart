@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/api_service.dart';
 
 class InstructorSignupScreen extends StatefulWidget {
   const InstructorSignupScreen({super.key});
@@ -17,6 +18,8 @@ class _InstructorSignupScreenState extends State<InstructorSignupScreen> {
   final _passwordController = TextEditingController();
   final _institutionController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -27,9 +30,42 @@ class _InstructorSignupScreenState extends State<InstructorSignupScreen> {
     super.dispose();
   }
 
-  void _signup() {
-    if (_formKey.currentState!.validate()) {
-      context.go('/instructor/dashboard');
+  Future<void> _signup() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await ApiService.post('/api/signup', {
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text,
+        'role': 'instructor',
+        'name': _nameController.text.trim(),
+        'institution': _institutionController.text.trim(),
+      });
+
+      if (result['success'] == true) {
+        if (mounted) {
+          context.go(
+            '/otp-verification?email=${Uri.encodeComponent(_emailController.text.trim())}&role=instructor',
+          );
+        }
+      } else {
+        setState(() {
+          _errorMessage = result['message'] ?? 'Signup failed';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -89,6 +125,37 @@ class _InstructorSignupScreenState extends State<InstructorSignupScreen> {
                   ),
                 ).animate().fadeIn().slideY(begin: -0.2, end: 0),
                 const SizedBox(height: 32),
+
+                // Error Message
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Name Field
                 _buildTextField(
@@ -166,7 +233,7 @@ class _InstructorSignupScreenState extends State<InstructorSignupScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _signup,
+                    onPressed: _isLoading ? null : _signup,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
@@ -174,13 +241,22 @@ class _InstructorSignupScreenState extends State<InstructorSignupScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
-                      'Create Instructor Account',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Create Instructor Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
                 const SizedBox(height: 24),

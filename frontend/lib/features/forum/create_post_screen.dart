@@ -7,7 +7,7 @@ import '../../core/providers/instructor_state.dart';
 import 'data/forum_state.dart';
 
 // Provider to track if we're in instructor mode
-final isInstructorModeProvider = StateProvider<bool>((ref) => false);
+// Provider to track if we're in instructor mode is imported from instructor_state.dart
 
 class CreatePostScreen extends ConsumerStatefulWidget {
   final bool fromInstructor;

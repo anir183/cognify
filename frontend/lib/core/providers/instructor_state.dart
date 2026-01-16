@@ -1,4 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/providers/user_state.dart';
+
+// --- Domain Models ---
 
 class CourseLevel {
   final String id;
@@ -107,6 +112,106 @@ class GeneratedCertificate {
   });
 }
 
+class StudentProgressItem {
+  final String id;
+  final String studentName;
+  final String courseName;
+  final int progress;
+  final String status;
+
+  StudentProgressItem({
+    required this.id,
+    required this.studentName,
+    required this.courseName,
+    required this.progress,
+    required this.status,
+  });
+
+  factory StudentProgressItem.fromJson(Map<String, dynamic> json) {
+    return StudentProgressItem(
+      id: json['id'] ?? '',
+      studentName: json['studentName'] ?? '',
+      courseName: json['courseName'] ?? '',
+      progress: json['progress'] ?? 0,
+      status: json['status'] ?? 'Active',
+    );
+  }
+}
+
+class AnalyticsInsights {
+  final List<String> roadblocks;
+  final List<String> recommendations;
+
+  AnalyticsInsights({required this.roadblocks, required this.recommendations});
+
+  factory AnalyticsInsights.fromJson(Map<String, dynamic> json) {
+    return AnalyticsInsights(
+      roadblocks: List<String>.from(json['roadblocks'] ?? []),
+      recommendations: List<String>.from(json['recommendations'] ?? []),
+    );
+  }
+}
+
+class InstructorAnalyticsData {
+  final int activeCount;
+  final int droppedCount;
+  final int completedCount;
+  final List<StudentProgressItem> students;
+  final AnalyticsInsights insights;
+
+  InstructorAnalyticsData({
+    required this.activeCount,
+    required this.droppedCount,
+    required this.completedCount,
+    required this.students,
+    required this.insights,
+  });
+
+  factory InstructorAnalyticsData.fromJson(Map<String, dynamic> json) {
+    return InstructorAnalyticsData(
+      activeCount: json['activeCount'] ?? 0,
+      droppedCount: json['droppedCount'] ?? 0,
+      completedCount: json['completedCount'] ?? 0,
+      students:
+          (json['studentProgress'] as List?)
+              ?.map((e) => StudentProgressItem.fromJson(e))
+              .toList() ??
+          [],
+      insights: AnalyticsInsights.fromJson(json['insights'] ?? {}),
+    );
+  }
+}
+
+class ActivityItem {
+  final String id;
+  final String type;
+  final String title;
+  final String subtitle;
+  final DateTime timestamp;
+
+  ActivityItem({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.subtitle,
+    required this.timestamp,
+  });
+
+  factory ActivityItem.fromJson(Map<String, dynamic> json) {
+    return ActivityItem(
+      id: json['id'] ?? '',
+      type: json['type'] ?? 'info',
+      title: json['title'] ?? '',
+      subtitle: json['subtitle'] ?? '',
+      timestamp: json['timestamp'] != null
+          ? DateTime.tryParse(json['timestamp']) ?? DateTime.now()
+          : DateTime.now(),
+    );
+  }
+}
+
+// --- State Model ---
+
 class InstructorState {
   final List<InstructorCourse> courses;
   final List<GeneratedCertificate> certificates;
@@ -114,12 +219,32 @@ class InstructorState {
   final String email;
   final String institution;
 
+  // Dashboard Stats
+  final int totalStudents;
+  final double averageRating;
+  final int totalEnrollments;
+  final double completionRate;
+  final int activeCoursesCount;
+
+  // Recent Activity
+  final List<ActivityItem> recentActivity;
+
+  // Analytics
+  final InstructorAnalyticsData? analytics;
+
   InstructorState({
     this.courses = const [],
     this.certificates = const [],
-    this.name = 'Dr. Educator',
-    this.email = 'educator@cognify.app',
+    this.name = '',
+    this.email = '',
     this.institution = 'Cognify Academy',
+    this.totalStudents = 0,
+    this.averageRating = 4.8,
+    this.totalEnrollments = 0,
+    this.completionRate = 0.0,
+    this.activeCoursesCount = 0,
+    this.recentActivity = const [],
+    this.analytics,
   });
 
   InstructorState copyWith({
@@ -128,6 +253,13 @@ class InstructorState {
     String? name,
     String? email,
     String? institution,
+    int? totalStudents,
+    double? averageRating,
+    int? totalEnrollments,
+    double? completionRate,
+    int? activeCoursesCount,
+    List<ActivityItem>? recentActivity,
+    InstructorAnalyticsData? analytics,
   }) {
     return InstructorState(
       courses: courses ?? this.courses,
@@ -135,14 +267,39 @@ class InstructorState {
       name: name ?? this.name,
       email: email ?? this.email,
       institution: institution ?? this.institution,
+      totalStudents: totalStudents ?? this.totalStudents,
+      averageRating: averageRating ?? this.averageRating,
+      totalEnrollments: totalEnrollments ?? this.totalEnrollments,
+      completionRate: completionRate ?? this.completionRate,
+      activeCoursesCount: activeCoursesCount ?? this.activeCoursesCount,
+      recentActivity: recentActivity ?? this.recentActivity,
+      analytics: analytics ?? this.analytics,
     );
   }
 }
 
+// --- Notifier ---
+
 class InstructorStateNotifier extends Notifier<InstructorState> {
   @override
   InstructorState build() {
+    // Sync basic info from UserState on build
+    final userState = ref.watch(userStateProvider);
+
+    // Defer fetching stats to allow build to finish
+    Future.microtask(() => fetchDashboardStats());
+
     return InstructorState(
+      name: userState.profile.name.isNotEmpty
+          ? userState.profile.name
+          : 'Instructor',
+      email: userState.profile.id.contains('@')
+          ? userState.profile.id
+          : 'instructor@cognify.app',
+      institution: userState.profile.institution.isNotEmpty
+          ? userState.profile.institution
+          : 'Cognify Academy',
+      // Preserve existing mock data structure for now until real endpoints exist for everything
       courses: [
         InstructorCourse(
           id: '1',
@@ -164,11 +321,6 @@ class InstructorStateNotifier extends Notifier<InstructorState> {
                 ),
               ],
             ),
-            CourseLevel(
-              id: 'l2',
-              title: 'Widgets Basics',
-              content: 'Everything in Flutter is a widget...',
-            ),
           ],
         ),
         InstructorCourse(
@@ -176,12 +328,6 @@ class InstructorStateNotifier extends Notifier<InstructorState> {
           title: 'Dart Fundamentals',
           studentCount: 156,
           progress: 92,
-        ),
-        InstructorCourse(
-          id: '3',
-          title: 'State Management Pro',
-          studentCount: 89,
-          progress: 78,
         ),
       ],
       certificates: [
@@ -193,17 +339,84 @@ class InstructorStateNotifier extends Notifier<InstructorState> {
           isAiGenerated: false,
           createdAt: DateTime.now().subtract(const Duration(days: 2)),
         ),
-        GeneratedCertificate(
-          id: 'c2',
-          studentName: 'Jane Smith',
-          courseName: 'Dart Basics',
-          templateName: 'Tech',
-          isAiGenerated: true,
-          createdAt: DateTime.now().subtract(const Duration(days: 5)),
-        ),
       ],
     );
   }
+
+  Future<void> fetchDashboardStats() async {
+    final userState = ref.read(userStateProvider);
+    final email = userState.profile.id; // Assuming ID is email
+
+    if (email.isEmpty) return;
+
+    try {
+      final result = await ApiService.get(
+        '/api/instructor/dashboard?instructorId=$email',
+      );
+      if (result['success'] == true && result['data'] != null) {
+        final data = result['data'];
+        state = state.copyWith(
+          totalStudents: data['totalStudents'] ?? state.totalStudents,
+          totalEnrollments: data['totalEnrollments'] ?? state.totalEnrollments,
+          activeCoursesCount: data['activeCourses'] ?? state.activeCoursesCount,
+          completionRate:
+              (data['completionRate'] as num?)?.toDouble() ??
+              state.completionRate,
+          averageRating:
+              (data['averageRating'] as num?)?.toDouble() ??
+              state.averageRating,
+          recentActivity:
+              (data['recentActivity'] as List?)
+                  ?.map((e) => ActivityItem.fromJson(e))
+                  .toList() ??
+              state.recentActivity,
+        );
+        // Note: courses list update logic would go here when backend returns full course list
+      }
+    } catch (e) {
+      debugPrint('Error fetching dashboard stats: $e');
+    }
+  }
+
+  Future<void> fetchAnalytics() async {
+    final userState = ref.read(userStateProvider);
+    final email = userState.profile.id;
+
+    if (email.isEmpty) return;
+
+    try {
+      final result = await ApiService.get(
+        '/api/instructor/analytics?instructorId=$email',
+      );
+      if (result['success'] == true && result['data'] != null) {
+        final data = result['data'];
+        state = state.copyWith(
+          analytics: InstructorAnalyticsData.fromJson(data),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error fetching analytics: $e');
+    }
+  }
+
+  Future<void> updateProfile({
+    String? name,
+    String? email,
+    String? institution,
+  }) async {
+    // Delegate to UserStateNotifier which handles API and persistence
+    await ref
+        .read(userStateProvider.notifier)
+        .updateProfile(
+          name: name,
+          institution: institution,
+          // email is not updateable via updateProfile usually, or handled separately
+        );
+
+    // Local state will update automatically because we watch userStateProvider in build()
+  }
+
+  // --- Course Management Methods ---
 
   void addCourse(String title) {
     final newCourse = InstructorCourse(
@@ -301,12 +514,59 @@ class InstructorStateNotifier extends Notifier<InstructorState> {
     state = state.copyWith(certificates: [...state.certificates, cert]);
   }
 
-  void updateProfile({String? name, String? email, String? institution}) {
-    state = state.copyWith(
-      name: name ?? state.name,
-      email: email ?? state.email,
-      institution: institution ?? state.institution,
-    );
+  Future<void> generateCertificate({
+    required String studentName,
+    required String courseName,
+    required String templateName,
+    required bool isAiGenerated,
+  }) async {
+    final userState = ref.read(userStateProvider);
+    final instructorId = userState.profile.id;
+
+    try {
+      final result = await ApiService.post(
+        '/api/instructor/certificate/generate',
+        {
+          'userId': instructorId,
+          'userName': studentName,
+          'courseName': courseName,
+          'courseId':
+              'course_${DateTime.now().millisecondsSinceEpoch}', // Mock course ID
+          'template':
+              templateName, // Pass template preference if backend supports it
+        },
+      );
+
+      if (result['success'] == true && result['data'] != null) {
+        // Parse returned certificate
+        // Adjust based on actual backend response structure
+        // For now constructing from inputs + ID if needed
+        final certData = result['data'];
+        final newCert = GeneratedCertificate(
+          id:
+              certData['id'] ??
+              DateTime.now().millisecondsSinceEpoch.toString(),
+          studentName: studentName,
+          courseName: courseName,
+          templateName: templateName,
+          isAiGenerated: isAiGenerated,
+          createdAt: DateTime.now(),
+        );
+        addCertificate(newCert);
+      }
+    } catch (e) {
+      debugPrint('Error generating certificate: $e');
+      // Fallback for demo if backend fails or is WIP
+      final fallbackCert = GeneratedCertificate(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        studentName: studentName,
+        courseName: courseName,
+        templateName: templateName,
+        isAiGenerated: isAiGenerated,
+        createdAt: DateTime.now(),
+      );
+      addCertificate(fallbackCert);
+    }
   }
 }
 

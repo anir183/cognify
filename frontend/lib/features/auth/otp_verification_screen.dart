@@ -8,18 +8,20 @@ import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/user_state.dart';
 import '../../core/providers/auth_state.dart';
-import '../../core/providers/gamification_state.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String email;
   final String password;
+  final String role;
 
   const OtpVerificationScreen({
     super.key,
     required this.email,
     required this.password,
+    this.role = 'student',
   });
 
   @override
@@ -71,29 +73,46 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       if (response['success'] == true) {
         // Save token and user data
         final prefs = await SharedPreferences.getInstance();
+        String userRole = widget.role; // Default to widget role
+
+        if (response['user'] != null) {
+          debugPrint('DEBUG: Setting user data: ${response['user']}');
+          ref.read(userStateProvider.notifier).setUser(response['user']);
+          // Use role from user data if available
+          if (response['user']['role'] != null) {
+            userRole = response['user']['role'] as String;
+          }
+        } else {
+          debugPrint('DEBUG: No user data in response: $response');
+        }
+
         if (response['token'] != null) {
           await prefs.setString('token', response['token']);
-          // Update Auth Provider state explicitly
-          ref.read(authProvider.notifier).login(response['token']);
+          // Update Auth Provider state explicitly with role
+          await ref
+              .read(authProvider.notifier)
+              .login(response['token'], role: userRole);
         }
         await prefs.setString(
           'user_email',
           widget.email,
         ); // Save email for updates
 
-        // Refresh gamification stats to ensure they are loaded for the new user
-        ref.refresh(gamificationProvider);
+        // No manual redirect needed as AuthProvider listener in Router will handle it
+        // based on the role we just set.
+        // But for safety, we can leave the manual check if router doesn't pick it up immediately.
+        debugPrint(
+          'DEBUG: Redirecting with role: $userRole (widget.role: ${widget.role})',
+        );
 
-        // Sync user data to state
-        if (response['user'] != null) {
-          debugPrint('DEBUG: Setting user data: ${response['user']}');
-          ref.read(userStateProvider.notifier).setUser(response['user']);
-        } else {
-          debugPrint('DEBUG: No user data in response: $response');
-        }
-
+        // Wait a tick to let the router process the auth state change if it wants
         if (mounted) {
-          context.go('/dashboard');
+          // Redirect based on role
+          if (userRole == 'instructor') {
+            context.go('/instructor/dashboard');
+          } else {
+            context.go('/dashboard');
+          }
         }
       } else {
         setState(() {
@@ -414,14 +433,22 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   const SizedBox(height: 24),
                   // Back button
                   TextButton.icon(
-                    onPressed: () => context.go('/signup'),
+                    onPressed: () {
+                      if (widget.role == 'instructor') {
+                        context.go('/instructor/login');
+                      } else {
+                        context.go('/signup');
+                      }
+                    },
                     icon: Icon(
                       Icons.arrow_back_ios,
                       size: 16,
                       color: AppTheme.textGrey,
                     ),
                     label: Text(
-                      "Back to Sign Up",
+                      widget.role == 'instructor'
+                          ? "Back to Instructor Login"
+                          : "Back to Sign Up",
                       style: TextStyle(color: AppTheme.textGrey),
                     ),
                   ),

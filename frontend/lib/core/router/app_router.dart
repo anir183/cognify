@@ -73,9 +73,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // If logged in and on splash, go to dashboard immediately (skip 2.5s wait)
       if (isLoggedIn && currentPath == '/splash') {
         if (authState.token != null) {
-          // Double check token valid?
-          // Optional: check role?
-          // But main dashboard is default.
+          if (authState.role == 'instructor') {
+            return '/instructor/dashboard';
+          }
           return '/dashboard';
         }
       }
@@ -94,14 +94,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
-      // If logged in and trying to access login/signup, redirect to dashboard
-      if (isLoggedIn && (currentPath == '/login' || currentPath == '/signup')) {
-        return '/dashboard';
-      }
+      // If logged in and trying to access login/signup/otp, redirect to dashboard
+      // Note: We include OTP verification here to handle the state transition when login() is called
       if (isLoggedIn &&
-          (currentPath == '/instructor/login' ||
+          (currentPath == '/login' ||
+              currentPath == '/signup' ||
+              currentPath == '/otp-verification' ||
+              currentPath == '/instructor/login' ||
               currentPath == '/instructor/signup')) {
-        return '/instructor/dashboard';
+        if (authState.role == 'instructor') {
+          return '/instructor/dashboard';
+        }
+        return '/dashboard';
       }
 
       return null; // No redirect needed
@@ -129,8 +133,16 @@ final routerProvider = Provider<GoRouter>((ref) {
               state.uri.queryParameters['email'] ??
               '';
           final password = extra['password'] as String? ?? '';
+          final role =
+              extra['role'] as String? ??
+              state.uri.queryParameters['role'] ??
+              'student';
 
-          return OtpVerificationScreen(email: email, password: password);
+          return OtpVerificationScreen(
+            email: email,
+            password: password,
+            role: role,
+          );
         },
       ),
       GoRoute(

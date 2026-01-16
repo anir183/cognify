@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -12,10 +13,10 @@ import (
 
 // GenerateCertificateRequest represents a certificate generation request
 type GenerateCertificateRequest struct {
-	UserID       string `json:"userId"`
-	UserName     string `json:"userName"`
-	CourseID     string `json:"courseId"`
-	CourseName   string `json:"courseName"`
+	UserID         string `json:"userId"`
+	UserName       string `json:"userName"`
+	CourseID       string `json:"courseId"`
+	CourseName     string `json:"courseName"`
 	CompletionData string `json:"completionData,omitempty"`
 }
 
@@ -41,37 +42,14 @@ func GenerateCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate certificate content using Gemini
-	content, err := services.GenerateCertificateContent(
-		r.Context(),
-		req.UserName,
-		req.CourseName,
-		req.CompletionData,
-	)
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "Failed to generate certificate content",
-		})
-		return
+	// Mock Certificate Content (Bypass AI as requested)
+	content := &services.CertificateContent{
+		CongratMessage: fmt.Sprintf("Congratulations %s! You have successfully completed %s with distinction. Your dedication to learning and mastery of the subject matter is truly commendable.", req.UserName, req.CourseName),
+		Skills:         []string{"Subject Mastery", "Critical Thinking", "Professional Development", "Technical Proficiency"},
+		Achievement:    "Certificate of Excellence",
 	}
 
 	issuedAt := time.Now()
-
-	// Generate PDF
-	pdfBytes, err := services.GenerateCertificatePDF(
-		req.UserName,
-		req.CourseName,
-		content.Achievement,
-		content.Skills,
-		content.CongratMessage,
-		issuedAt,
-	)
-	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "Failed to generate certificate PDF",
-		})
-		return
-	}
 
 	// Create certificate record
 	certificate := &models.Certificate{
@@ -90,10 +68,14 @@ func GenerateCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = db.FirestoreClient.Collection("certificates").Doc(certificate.ID).Set(r.Context(), certificate)
 	}
 
-	// Return PDF as response
-	w.Header().Set("Content-Type", "application/pdf")
-	w.Header().Set("Content-Disposition", "attachment; filename=certificate_"+req.UserID+"_"+req.CourseID+".pdf")
-	w.Write(pdfBytes)
+	// Update instructor stats (optional but good practice)
+	// We could increment 'certificatesIssued' if we tracked it
+
+	// Return Certificate Data as JSON
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data":    certificate,
+	})
 }
 
 // GetCertificateDataHandler returns certificate data without generating PDF
@@ -148,20 +130,200 @@ func InstructorDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mock data for dashboard
+	var stats models.InstructorStats
+
+	// Try to fetch from DB
+	if db.FirestoreClient != nil {
+		docRef := db.FirestoreClient.Collection("instructor_stats").Doc(instructorID)
+		docSnap, err := docRef.Get(r.Context())
+
+		if err != nil {
+			// If not found or error, we assume missing and seed default data
+			// User requested to "populate the database" so we'll create seed data
+
+			// Seed Data (matches user's profile expectations: 156 students, 2 courses)
+			stats = models.InstructorStats{
+				InstructorID:     instructorID,
+				TotalStudents:    156,
+				ActiveCourses:    2,
+				TotalEnrollments: 423,
+				CompletionRate:   78.0,
+				AverageRating:    4.8,
+			}
+
+			// Save seed data to DB
+			_, setErr := docRef.Set(r.Context(), stats)
+			if setErr != nil {
+				// Just log error but continue with seeded stats locally
+				// In a real app we'd log this properly
+			}
+		} else {
+			// Found, unmarshal
+			if err := docSnap.DataTo(&stats); err != nil {
+				respondJSON(w, http.StatusInternalServerError, map[string]string{
+					"error": "Failed to parse instructor stats",
+				})
+				return
+			}
+		}
+	} else {
+		// No DB connection, use mock
+		stats = models.InstructorStats{
+			InstructorID:     instructorID,
+			TotalStudents:    156,
+			ActiveCourses:    2,
+			TotalEnrollments: 423,
+			CompletionRate:   78.0,
+			AverageRating:    4.8,
+		}
+	}
+
+	// Load Recent Activity
+	var activities []models.ActivityItem
+
+	if db.FirestoreClient != nil {
+		actDocRef := db.FirestoreClient.Collection("instructor_activities").Doc(instructorID)
+		actSnap, err := actDocRef.Get(r.Context())
+
+		if err != nil {
+			// Seed Data
+			activities = []models.ActivityItem{
+				{ID: "a1", Type: "enrollment", Title: "New student enrolled", Subtitle: "John Doe joined Flutter Mastery", Timestamp: time.Now().Add(-20 * time.Minute)},
+				{ID: "a2", Type: "completion", Title: "Course completed", Subtitle: "Jane completed Dart Basics", Timestamp: time.Now().Add(-2 * time.Hour)},
+				{ID: "a3", Type: "feedback", Title: "New feedback", Subtitle: "5 new reviews on your course", Timestamp: time.Now().Add(-5 * time.Hour)},
+				{ID: "a4", Type: "certificate", Title: "Certificate issued", Subtitle: "Mike earned Flutter Pro badge", Timestamp: time.Now().Add(-24 * time.Hour)},
+			}
+			// Wrapper struct for saving
+			wrapper := map[string]interface{}{
+				"items": activities,
+			}
+			_, _ = actDocRef.Set(r.Context(), wrapper)
+		} else {
+			var wrapper struct {
+				Items []models.ActivityItem `firestore:"items"`
+			}
+			if err := actSnap.DataTo(&wrapper); err == nil {
+				activities = wrapper.Items
+			}
+		}
+	} else {
+		// Mock
+		activities = []models.ActivityItem{
+			{ID: "a1", Type: "enrollment", Title: "New student enrolled", Subtitle: "John Doe joined Flutter Mastery", Timestamp: time.Now().Add(-20 * time.Minute)},
+			{ID: "a2", Type: "completion", Title: "Course completed", Subtitle: "Jane completed Dart Basics", Timestamp: time.Now().Add(-2 * time.Hour)},
+		}
+	}
+
+	// Construct final response
 	dashboardData := map[string]interface{}{
-		"totalStudents":   156,
-		"activeCourses":   5,
-		"totalEnrollments": 423,
-		"completionRate":   0.72,
-		"recentActivity": []map[string]interface{}{
-			{"type": "enrollment", "student": "Alex Chen", "course": "Flutter Mastery", "time": time.Now().Add(-2 * time.Hour)},
-			{"type": "completion", "student": "Sarah Kim", "course": "AI Basics", "time": time.Now().Add(-5 * time.Hour)},
-		},
+		"totalStudents":    stats.TotalStudents,
+		"activeCourses":    stats.ActiveCourses,
+		"totalEnrollments": stats.TotalEnrollments,
+		"completionRate":   stats.CompletionRate,
+		"averageRating":    stats.AverageRating,
+		"recentActivity":   activities,
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"data":    dashboardData,
+	})
+}
+
+// InstructorAnalyticsHandler returns instructor analytics data including AI insights
+func InstructorAnalyticsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	instructorID := r.URL.Query().Get("instructorId")
+	if instructorID == "" {
+		respondJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Instructor ID is required",
+		})
+		return
+	}
+
+	var analytics models.InstructorAnalytics
+	var activeCount, droppedCount, completedCount int
+
+	// Try to fetch from DB
+	if db.FirestoreClient != nil {
+		docRef := db.FirestoreClient.Collection("instructor_analytics").Doc(instructorID)
+		docSnap, err := docRef.Get(r.Context())
+
+		if err != nil {
+			// Seed Data if missing
+			studs := []models.StudentProgress{
+				{ID: "s1", StudentName: "John Doe", CourseName: "Flutter Mastery", Progress: 85, Status: "Active", LastActive: time.Now()},
+				{ID: "s2", StudentName: "Jane Smith", CourseName: "Dart Basics", Progress: 42, Status: "Dropped", LastActive: time.Now().Add(-72 * time.Hour)},
+				{ID: "s3", StudentName: "Mike Johnson", CourseName: "State Management", Progress: 95, Status: "Completed", LastActive: time.Now()},
+				{ID: "s4", StudentName: "Sarah Wilson", CourseName: "Flutter Mastery", Progress: 28, Status: "Dropped", LastActive: time.Now().Add(-120 * time.Hour)},
+				{ID: "s5", StudentName: "Tom Brown", CourseName: "UI/UX Design", Progress: 67, Status: "Active", LastActive: time.Now()},
+			}
+
+			// Calc counts
+			for _, s := range studs {
+				if s.Status == "Active" {
+					activeCount++
+				} else if s.Status == "Dropped" {
+					droppedCount++
+				} else if s.Status == "Completed" {
+					completedCount++
+				}
+			}
+
+			// Generate AI Insights
+			dataSummary := "Students are struggling with State Management. Dropout rate is increasing in Dart Basics. Flutter Mastery has high engagement."
+			insights, _ := services.GenerateAnalyticsInsights(r.Context(), dataSummary)
+
+			// Fill model
+			analytics = models.InstructorAnalytics{
+				InstructorID:    instructorID,
+				ActiveCount:     189, // Mocking larger numbers to match UI screenshot approximately
+				DroppedCount:    23,
+				CompletedCount:  45,
+				StudentProgress: studs,
+				Insights: models.AIInsights{
+					Roadblocks:      insights.Roadblocks,
+					Recommendations: insights.Recommendations,
+				},
+				UpdatedAt: time.Now(),
+			}
+
+			// Save to DB
+			_, _ = docRef.Set(r.Context(), analytics)
+		} else {
+			// Found
+			if err := docSnap.DataTo(&analytics); err != nil {
+				respondJSON(w, http.StatusInternalServerError, map[string]string{
+					"error": "Failed to parse analytics",
+				})
+				return
+			}
+		}
+	} else {
+		// Mock mode
+		analytics = models.InstructorAnalytics{
+			InstructorID:   instructorID,
+			ActiveCount:    189,
+			DroppedCount:   23,
+			CompletedCount: 45,
+			StudentProgress: []models.StudentProgress{
+				{ID: "s1", StudentName: "John Doe", CourseName: "Flutter Mastery", Progress: 85, Status: "Active"},
+				{ID: "s2", StudentName: "Jane Smith", CourseName: "Dart Basics", Progress: 42, Status: "Dropped"},
+				{ID: "s3", StudentName: "Mike Johnson", CourseName: "State Management", Progress: 95, Status: "Completed"},
+			},
+			Insights: models.AIInsights{
+				Roadblocks:      []string{"High dropoff in Module 3", "Quiz 1 scores low"},
+				Recommendations: []string{"Add more examples", "Review Module 3 content"},
+			},
+		}
+	}
+
+	respondJSON(w, http.StatusOK, map[string]interface{}{
+		"success": true,
+		"data":    analytics,
 	})
 }

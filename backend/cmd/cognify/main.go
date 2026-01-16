@@ -97,6 +97,7 @@ func main() {
 		r.Get("/courses/recommendations", api.GetRecommendationsHandler)
 		r.Get("/battles/questions", api.GetBattleQuestionsHandler)
 		r.Post("/seed-battle-data", api.SeedBattleDataHandler)
+		r.Post("/notifications/seed", api.SeedNotificationsHandler(db.FirestoreClient))
 
 		// Lesson Completion (Student Progress)
 		r.Post("/course/level/complete", api.CompleteLessonHandler)
@@ -125,6 +126,10 @@ func main() {
 			r.Post("/update-profile", api.UpdateProfileHandler)
 			r.Get("/user/stats", api.GetUserStatsHandler)
 			r.Get("/user/achievements", api.GetUserAchievementsHandler)
+
+			// Notification routes
+			r.Get("/notifications", api.GetNotificationsHandler(db.FirestoreClient))
+			r.Post("/notifications/:id/read", api.MarkNotificationReadHandler(db.FirestoreClient))
 		})
 
 		// Instructor routes
@@ -133,6 +138,7 @@ func main() {
 			r.Get("/dashboard", api.InstructorDashboardHandler)
 			r.Post("/certificate/generate", api.GenerateCertificateHandler)
 			r.Post("/certificate/data", api.GetCertificateDataHandler)
+			r.Get("/analytics", api.InstructorAnalyticsHandler)
 		})
 	})
 
