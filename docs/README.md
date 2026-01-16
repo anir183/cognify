@@ -1,6 +1,10 @@
 # Cognify 🎓🧠  
 **AI-Powered Personalized & Gamified Learning Platform**
 
+> [!IMPORTANT]  
+> This is the "original" in the sense that, this was the state of the application when we submitted this to the Google Developer Group Kolkata's student hackathon "TechSprint" and bagged the 2nd prize.
+> We may further develop on this idea and fix, improve or change some functionality. But this branch also keeps the first real MVP of this application.
+
 Cognify is an AI-driven EdTech platform that delivers **truly personalized learning** through **real-time adaptation**, **performance analysis**, and **gamified experiences**.  
 It moves beyond static course structures to dynamically adjust **difficulty, pace, and reinforcement** based on each learner’s performance.
 
