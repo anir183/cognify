@@ -43,18 +43,24 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> get(String endpoint) async {
+  static Future<dynamic> get(String endpoint) async {
     final url = Uri.parse('$baseUrl$endpoint');
     try {
       final headers = await _getHeaders();
       final response = await http.get(url, headers: headers);
 
-      final data = jsonDecode(response.body);
-
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return data;
+        return jsonDecode(response.body);
       } else {
-        throw Exception(data['message'] ?? 'Request failed');
+        // Try to parse as JSON, otherwise use body as message
+        try {
+          final data = jsonDecode(response.body);
+          throw Exception(data['message'] ?? data['error'] ?? 'Request failed');
+        } catch (_) {
+          throw Exception(
+            response.body.isNotEmpty ? response.body : 'Request failed',
+          );
+        }
       }
     } catch (e) {
       throw Exception('Network error: $e');

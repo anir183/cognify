@@ -12,11 +12,12 @@ type User struct {
 	AvatarEmoji    string `json:"avatarEmoji" firestore:"avatarEmoji"`
 	// sensitive data like Password should be marked to exclude from JSON if needed, but for internal model it's fine
 	// or use json:"-" to never send it to client
-	Password  string    `json:"-" firestore:"password"`
-	XP        int       `json:"xp" firestore:"xp"`
-	Level     int       `json:"level" firestore:"level"`
-	CreatedAt time.Time `json:"createdAt" firestore:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt" firestore:"updatedAt"`
+	Password    string    `json:"-" firestore:"password"`
+	Institution string    `json:"institution" firestore:"institution"`
+	XP          int       `json:"xp" firestore:"xp"`
+	Level       int       `json:"level" firestore:"level"`
+	CreatedAt   time.Time `json:"createdAt" firestore:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt" firestore:"updatedAt"`
 }
 
 type Course struct {
@@ -129,4 +130,45 @@ type AIRecommendation struct {
 	CourseID    string    `json:"courseId" firestore:"courseId"` // Linked course ID
 	Reason      string    `json:"reason" firestore:"reason"`     // "Why this was chosen"
 	GeneratedAt time.Time `json:"generatedAt" firestore:"generatedAt"`
+}
+
+type InstructorStats struct {
+	InstructorID     string  `json:"instructorId" firestore:"instructorId"`
+	TotalStudents    int     `json:"totalStudents" firestore:"totalStudents"`
+	ActiveCourses    int     `json:"activeCourses" firestore:"activeCourses"`
+	TotalEnrollments int     `json:"totalEnrollments" firestore:"totalEnrollments"`
+	CompletionRate   float64 `json:"completionRate" firestore:"completionRate"`
+	AverageRating    float64 `json:"averageRating" firestore:"averageRating"`
+}
+
+type StudentProgress struct {
+	ID          string    `json:"id" firestore:"id"`
+	StudentName string    `json:"studentName" firestore:"studentName"`
+	CourseName  string    `json:"courseName" firestore:"courseName"`
+	Progress    int       `json:"progress" firestore:"progress"`
+	Status      string    `json:"status" firestore:"status"` // "Active", "Dropped", "Completed"
+	LastActive  time.Time `json:"lastActive" firestore:"lastActive"`
+}
+
+type AIInsights struct {
+	Roadblocks      []string `json:"roadblocks" firestore:"roadblocks"`
+	Recommendations []string `json:"recommendations" firestore:"recommendations"`
+}
+
+type InstructorAnalytics struct {
+	InstructorID    string            `json:"instructorId" firestore:"instructorId"`
+	ActiveCount     int               `json:"activeCount" firestore:"activeCount"`
+	DroppedCount    int               `json:"droppedCount" firestore:"droppedCount"`
+	CompletedCount  int               `json:"completedCount" firestore:"completedCount"`
+	StudentProgress []StudentProgress `json:"studentProgress" firestore:"studentProgress"`
+	Insights        AIInsights        `json:"insights" firestore:"insights"`
+	UpdatedAt       time.Time         `json:"updatedAt" firestore:"updatedAt"`
+}
+
+type ActivityItem struct {
+	ID        string    `json:"id" firestore:"id"`
+	Type      string    `json:"type" firestore:"type"` // "enrollment", "completion", "feedback", "certificate"
+	Title     string    `json:"title" firestore:"title"`
+	Subtitle  string    `json:"subtitle" firestore:"subtitle"`
+	Timestamp time.Time `json:"timestamp" firestore:"timestamp"`
 }

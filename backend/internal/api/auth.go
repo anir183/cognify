@@ -305,6 +305,7 @@ type UpdateProfileRequest struct {
 	Username    string `json:"username"`
 	Bio         string `json:"bio"`
 	AvatarEmoji string `json:"avatarEmoji"`
+	Institution string `json:"institution"`
 }
 
 // UpdateProfileHandler handles profile updates
@@ -333,13 +334,26 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Update in Firestore
 	if db.FirestoreClient != nil {
-		_, err := db.FirestoreClient.Collection("users").Doc(req.ID).Set(r.Context(), map[string]interface{}{
-			"name":        req.Name,
-			"username":    req.Username,
-			"bio":         req.Bio,
-			"avatarEmoji": req.AvatarEmoji,
-			"updatedAt":   time.Now(),
-		}, firestore.MergeAll)
+		updates := map[string]interface{}{
+			"updatedAt": time.Now(),
+		}
+		if req.Name != "" {
+			updates["name"] = req.Name
+		}
+		if req.Username != "" {
+			updates["username"] = req.Username
+		}
+		if req.Bio != "" {
+			updates["bio"] = req.Bio
+		}
+		if req.AvatarEmoji != "" {
+			updates["avatarEmoji"] = req.AvatarEmoji
+		}
+		if req.Institution != "" {
+			updates["institution"] = req.Institution
+		}
+
+		_, err := db.FirestoreClient.Collection("users").Doc(req.ID).Set(r.Context(), updates, firestore.MergeAll)
 
 		if err != nil {
 			respondJSON(w, http.StatusInternalServerError, AuthResponse{

@@ -10,6 +10,7 @@ class UserProfile {
   final String username;
   final String bio;
   final String avatarEmoji;
+  final String institution;
 
   const UserProfile({
     this.id = '',
@@ -17,6 +18,7 @@ class UserProfile {
     this.username = 'cyberninja42',
     this.bio = 'Learning every day!',
     this.avatarEmoji = '🥷',
+    this.institution = '',
   });
 
   UserProfile copyWith({
@@ -25,6 +27,7 @@ class UserProfile {
     String? username,
     String? bio,
     String? avatarEmoji,
+    String? institution,
   }) {
     return UserProfile(
       id: id ?? this.id,
@@ -32,6 +35,7 @@ class UserProfile {
       username: username ?? this.username,
       bio: bio ?? this.bio,
       avatarEmoji: avatarEmoji ?? this.avatarEmoji,
+      institution: institution ?? this.institution,
     );
   }
 }
@@ -145,6 +149,56 @@ class NotificationItem {
       isUnread: isUnread ?? this.isUnread,
     );
   }
+
+  factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    IconData icon;
+    Color color;
+
+    switch (json['type']) {
+      case 'challenge':
+        icon = Icons.bolt;
+        color = const Color(0xFFB388FF);
+        break;
+      case 'level_up':
+        icon = Icons.arrow_upward;
+        color = const Color(0xFF00E5CC);
+        break;
+      case 'course':
+        icon = Icons.school;
+        color = Colors.orange;
+        break;
+      case 'streak':
+        icon = Icons.local_fire_department;
+        color = Colors.red;
+        break;
+      default:
+        icon = Icons.notifications;
+        color = Colors.blue;
+    }
+
+    return NotificationItem(
+      id: json['id'] ?? '',
+      title: json['title'] ?? '',
+      body: json['body'] ?? '',
+      time: _formatTime(json['createdAt']),
+      icon: icon,
+      color: color,
+      isUnread: !(json['isRead'] ?? false),
+    );
+  }
+
+  static String _formatTime(String? timestamp) {
+    if (timestamp == null) return 'Just now';
+    try {
+      final date = DateTime.parse(timestamp);
+      final diff = DateTime.now().difference(date);
+      if (diff.inDays > 0) return '${diff.inDays}d ago';
+      if (diff.inHours > 0) return '${diff.inHours}h ago';
+      return '${diff.inMinutes}m ago';
+    } catch (_) {
+      return 'Just now';
+    }
+  }
 }
 
 // Complete User State
@@ -181,46 +235,25 @@ class UserStateNotifier extends Notifier<UserState> {
   @override
   UserState build() {
     _loadSettings();
-    return UserState(
-      notifications: [
-        NotificationItem(
-          id: '1',
-          title: 'Battle Challenge!',
-          body: 'Cyber Ninja challenges you to a duel.',
-          time: '2m ago',
-          icon: Icons.bolt,
-          color: const Color(0xFFB388FF),
-          isUnread: true,
-        ),
-        NotificationItem(
-          id: '2',
-          title: 'Level Up!',
-          body: 'You reached Level 5. Keep it up!',
-          time: '2h ago',
-          icon: Icons.arrow_upward,
-          color: const Color(0xFF00E5CC),
-          isUnread: true,
-        ),
-        NotificationItem(
-          id: '3',
-          title: 'New Course Available',
-          body: 'Mastering Flutter Animations is now live.',
-          time: '1d ago',
-          icon: Icons.school,
-          color: Colors.orange,
-          isUnread: false,
-        ),
-        NotificationItem(
-          id: '4',
-          title: 'Streak Saver Used',
-          body: 'You missed a day, but your streak is safe.',
-          time: '2d ago',
-          icon: Icons.local_fire_department,
-          color: Colors.red,
-          isUnread: false,
-        ),
-      ],
-    );
+    // Fetch notifications asynchronously
+    Future.microtask(() => fetchNotifications());
+    return UserState(notifications: []);
+  }
+
+  Future<void> fetchNotifications() async {
+    try {
+      final result = await ApiService.get('/api/notifications');
+      if (result is List) {
+        final notifications = result
+            .map(
+              (item) => NotificationItem.fromJson(item as Map<String, dynamic>),
+            )
+            .toList();
+        state = state.copyWith(notifications: notifications);
+      }
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -241,6 +274,7 @@ class UserStateNotifier extends Notifier<UserState> {
     await prefs.setString('profile_username', state.profile.username);
     await prefs.setString('profile_bio', state.profile.bio);
     await prefs.setString('profile_avatar', state.profile.avatarEmoji);
+    await prefs.setString('profile_institution', state.profile.institution);
 
     await prefs.setInt('stats_level', state.stats.level);
     await prefs.setInt('stats_xp', state.stats.currentXp);
@@ -265,6 +299,7 @@ class UserStateNotifier extends Notifier<UserState> {
     final username = prefs.getString('profile_username');
     final bio = prefs.getString('profile_bio');
     final avatarEmoji = prefs.getString('profile_avatar');
+    final institution = prefs.getString('profile_institution');
 
     // Load Stats
     final level = prefs.getInt('stats_level');
@@ -290,7 +325,12 @@ class UserStateNotifier extends Notifier<UserState> {
           name: name,
           username: username ?? 'user',
           bio: bio ?? 'Learning every day!',
-          avatarEmoji: avatarEmoji ?? '🥷',
+          avatarEmoji:
+              avatarEmoji ??
+              ((id?.toLowerCase().contains('instructor') ?? false)
+                  ? '👨‍🏫'
+                  : '🥷'),
+          institution: institution ?? '',
         ),
         stats: UserStats(
           level: level ?? 1,
@@ -317,6 +357,7 @@ class UserStateNotifier extends Notifier<UserState> {
         name: userData['name'] ?? 'User',
         username: userData['username'] ?? 'user',
         avatarEmoji: userData['avatarEmoji'] ?? '🥷',
+        institution: userData['institution'] ?? '',
       ),
       stats: state.stats.copyWith(
         level: userData['level'] ?? 1,
@@ -343,31 +384,24 @@ class UserStateNotifier extends Notifier<UserState> {
     String? username,
     String? bio,
     String? avatarEmoji,
+    String? institution,
   }) async {
     // Optimistic update
-    final oldState = state;
     state = state.copyWith(
       profile: state.profile.copyWith(
         name: name,
         username: username,
         bio: bio,
         avatarEmoji: avatarEmoji,
+        institution: institution,
       ),
     );
     _saveProfile();
 
     try {
       // Sync with backend
-      // We need the email/ID to identify the user.
-      // Assuming 'username' or we should store 'email' in profile too?
-      // Wait, UserProfile doesn't have email.
-      // We usually store email in UserState or get it from SharedPreferences.
-      // Let's check if we have email.
-
       final prefs = await SharedPreferences.getInstance();
-      final email = prefs.getString(
-        'user_email',
-      ); // We need to ensure we save this on login
+      final email = prefs.getString('user_email');
 
       if (email != null) {
         await ApiService.post('/api/update-profile', {
@@ -376,14 +410,13 @@ class UserStateNotifier extends Notifier<UserState> {
           'username': state.profile.username,
           'bio': state.profile.bio,
           'avatarEmoji': state.profile.avatarEmoji,
+          'institution': state.profile.institution,
         });
       } else {
         debugPrint('Warning: No email found for profile update');
       }
     } catch (e) {
       debugPrint('Error updating profile on backend: $e');
-      // Revert on error? Or just show error?
-      // For now, let's keep local changes but log error.
     }
   }
 
@@ -444,21 +477,42 @@ class UserStateNotifier extends Notifier<UserState> {
   }
 
   // Notification Methods
-  void clearAllNotifications() {
+  Future<void> clearAllNotifications() async {
+    final unreadIds = state.notifications
+        .where((n) => n.isUnread)
+        .map((n) => n.id)
+        .toList();
+
     state = state.copyWith(
       notifications: state.notifications
           .map((n) => n.copyWith(isUnread: false))
           .toList(),
     );
+
+    for (final id in unreadIds) {
+      try {
+        await ApiService.post('/api/notifications/$id/read', {});
+      } catch (e) {
+        debugPrint('Error marking notification $id read: $e');
+      }
+    }
   }
 
-  void markNotificationRead(String id) {
+  Future<void> markNotificationRead(String id) async {
+    // Optimistic update
     state = state.copyWith(
       notifications: state.notifications.map((n) {
         if (n.id == id) return n.copyWith(isUnread: false);
         return n;
       }).toList(),
     );
+
+    // Sync with backend
+    try {
+      await ApiService.post('/api/notifications/$id/read', {});
+    } catch (e) {
+      debugPrint('Error marking notification read: $e');
+    }
   }
 
   int get unreadCount => state.notifications.where((n) => n.isUnread).length;

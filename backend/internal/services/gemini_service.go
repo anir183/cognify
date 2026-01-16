@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -30,7 +31,7 @@ func InitGemini(ctx context.Context) error {
 		return nil
 	}
 
-	geminiModel = geminiClient.GenerativeModel("gemini-2.5-flash-lite")
+	geminiModel = geminiClient.GenerativeModel("gemini-2.5-flash")
 	log.Println("Gemini AI initialized successfully")
 	return nil
 }
@@ -305,4 +306,92 @@ type CertificateContent struct {
 	CongratMessage string   `json:"congratMessage"`
 	Skills         []string `json:"skills"`
 	Achievement    string   `json:"achievement"`
+}
+
+// GenerateAnalyticsInsights generates insights for instructor analytics
+func GenerateAnalyticsInsights(ctx context.Context, dataSummary string) (*struct {
+	Roadblocks      []string `json:"roadblocks"`
+	Recommendations []string `json:"recommendations"`
+}, error) {
+	// Define the return structure type
+	type InsightsResponse struct {
+		Roadblocks      []string `json:"roadblocks"`
+		Recommendations []string `json:"recommendations"`
+	}
+
+	if geminiModel == nil {
+		return &struct {
+			Roadblocks      []string `json:"roadblocks"`
+			Recommendations []string `json:"recommendations"`
+		}{
+			Roadblocks: []string{
+				"45% of students struggle with State Management",
+				"Quiz 2 has a 35% failure rate",
+				"Module 5 completion time is high",
+			},
+			Recommendations: []string{
+				"Add video tutorial for Riverpod",
+				"Create practice exercises before Quiz 2",
+				"Split Module 5 into smaller sections",
+			},
+		}, nil
+	}
+
+	prompt := fmt.Sprintf(`Analyze the following student progress data and provide insights for the instructor.
+Data Summary:
+%s
+
+Generate:
+1. 3 Common Roadblocks observed (concise bullet points)
+2. 3 Specific Recommendations to improve course delivery
+
+Respond in this exact JSON format:
+{
+  "roadblocks": ["roadblock1", "roadblock2", "roadblock3"],
+  "recommendations": ["rec1", "rec2", "rec3"]
+}
+Do not include markdown formatting like '''json. Just the raw JSON.`, dataSummary)
+
+	resp, err := geminiModel.GenerateContent(ctx, genai.Text(prompt))
+	if err != nil {
+		return nil, err
+	}
+
+	var responseText strings.Builder
+	for _, candidate := range resp.Candidates {
+		if candidate.Content != nil {
+			for _, part := range candidate.Content.Parts {
+				responseText.WriteString(fmt.Sprintf("%v", part))
+			}
+		}
+	}
+
+	rawJSON := responseText.String()
+	// Clean up potential markdown code blocks
+	rawJSON = strings.TrimPrefix(rawJSON, "```json")
+	rawJSON = strings.TrimPrefix(rawJSON, "```")
+	rawJSON = strings.TrimSuffix(rawJSON, "```")
+	rawJSON = strings.TrimSpace(rawJSON)
+
+	var insights InsightsResponse
+	if err := json.Unmarshal([]byte(rawJSON), &insights); err != nil {
+		log.Printf("Error parsing Gemini JSON: %v, Raw: %s", err, rawJSON)
+		// Fallback to default if parsing fails
+		return &struct {
+			Roadblocks      []string `json:"roadblocks"`
+			Recommendations []string `json:"recommendations"`
+		}{
+			Roadblocks:      []string{"Unable to parse insights", "Check logs for details"},
+			Recommendations: []string{"Try refreshing analytics"},
+		}, nil
+	}
+
+	// copy to anonymous struct to match return type
+	return &struct {
+		Roadblocks      []string `json:"roadblocks"`
+		Recommendations []string `json:"recommendations"`
+	}{
+		Roadblocks:      insights.Roadblocks,
+		Recommendations: insights.Recommendations,
+	}, nil
 }

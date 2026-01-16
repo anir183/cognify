@@ -90,7 +90,7 @@ class _InstructorForumScreenState extends ConsumerState<InstructorForumScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go('/instructor/profile'),
         ),
         title: Text("Community Forum", style: AppTheme.headlineMedium),
         actions: [

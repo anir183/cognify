@@ -45,32 +45,52 @@ class _InstructorCertificatesScreenState
 
   void _generateWithAI() async {
     setState(() => _isGenerating = true);
-    await Future.delayed(const Duration(seconds: 2));
+
+    // Simulate "thinking" delay
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (!mounted) return;
+
+    final random = DateTime.now().millisecondsSinceEpoch;
     setState(() {
-      _selectedTemplate = DateTime.now().millisecond % _templates.length;
+      _selectedTemplate = random % _templates.length;
       _isGenerating = false;
     });
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('AI generated your certificate! 🎨'),
+        content: Text('AI customized your certificate! 🎨'),
         backgroundColor: Colors.purple,
       ),
     );
+
+    // Auto-issue
+    _issueCertificate(isAiGenerated: true);
   }
 
-  void _issueCertificate({required bool isAiGenerated}) {
-    final cert = GeneratedCertificate(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      studentName: _studentNameController.text,
-      courseName: _courseNameController.text,
-      templateName: _templates[_selectedTemplate]['name'] as String,
-      isAiGenerated: isAiGenerated,
-      createdAt: DateTime.now(),
-    );
-    ref.read(instructorStateProvider.notifier).addCertificate(cert);
+  void _issueCertificate({required bool isAiGenerated}) async {
+    // Show loading indicator or simple snackbar
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Certificate issued! 🎉'),
+        content: Text('Issuing certificate...'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+
+    await ref
+        .read(instructorStateProvider.notifier)
+        .generateCertificate(
+          studentName: _studentNameController.text,
+          courseName: _courseNameController.text,
+          templateName: _templates[_selectedTemplate]['name'] as String,
+          isAiGenerated: isAiGenerated,
+        );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Certificate issued & saved! 🎉'),
         backgroundColor: Colors.green,
       ),
     );

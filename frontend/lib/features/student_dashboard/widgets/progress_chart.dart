@@ -67,9 +67,10 @@ class ProgressChart extends ConsumerWidget {
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      interval: 1,
                       getTitlesWidget: (value, meta) {
                         final index = value.toInt();
-                        if (index >= 0 && index < 7) {
+                        if (index >= 0 && index < 7 && data[index] > 0) {
                           // Calculate date: Today - (6 - index) days
                           // index 6 is Today (0 days ago)
                           // index 0 is 6 days ago

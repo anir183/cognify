@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/services/api_service.dart';
 
 class InstructorLoginScreen extends StatefulWidget {
   const InstructorLoginScreen({super.key});
@@ -15,6 +16,8 @@ class _InstructorLoginScreenState extends State<InstructorLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -23,9 +26,40 @@ class _InstructorLoginScreenState extends State<InstructorLoginScreen> {
     super.dispose();
   }
 
-  void _login() {
-    if (_formKey.currentState!.validate()) {
-      context.go('/instructor/dashboard');
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final result = await ApiService.post('/api/login', {
+        'email': _emailController.text.trim(),
+        'password': _passwordController.text,
+        'role': 'instructor',
+      });
+
+      if (result['success'] == true) {
+        if (mounted) {
+          context.go(
+            '/otp-verification?email=${Uri.encodeComponent(_emailController.text.trim())}&role=instructor',
+          );
+        }
+      } else {
+        setState(() {
+          _errorMessage = result['message'] ?? 'Login failed';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -85,6 +119,37 @@ class _InstructorLoginScreenState extends State<InstructorLoginScreen> {
                   ),
                 ).animate().fadeIn().slideY(begin: -0.2, end: 0),
                 const SizedBox(height: 40),
+
+                // Error Message
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                 // Email Field
                 TextFormField(
@@ -170,7 +235,7 @@ class _InstructorLoginScreenState extends State<InstructorLoginScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _login,
+                    onPressed: _isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
                       foregroundColor: Colors.white,
@@ -178,13 +243,22 @@ class _InstructorLoginScreenState extends State<InstructorLoginScreen> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
-                      'Login as Instructor',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Login as Instructor',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
                 const SizedBox(height: 24),

@@ -4,6 +4,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/instructor_state.dart';
+import '../../../core/providers/user_state.dart';
+import '../../../core/providers/auth_state.dart';
 
 class InstructorProfileScreen extends ConsumerWidget {
   const InstructorProfileScreen({super.key});
@@ -50,8 +52,18 @@ class InstructorProfileScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    child: const Center(
-                      child: Text("👨‍🏫", style: TextStyle(fontSize: 50)),
+                    child: Center(
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final userState = ref.watch(userStateProvider);
+                          return Text(
+                            userState.profile.avatarEmoji.isNotEmpty
+                                ? userState.profile.avatarEmoji
+                                : "👨‍🏫",
+                            style: const TextStyle(fontSize: 50),
+                          );
+                        },
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -92,10 +104,17 @@ class InstructorProfileScreen extends ConsumerWidget {
                     children: [
                       _statItem(
                         "Courses",
+                        // Use active courses count from stats if available, else fallback to list length
                         instructorState.courses.length.toString(),
                       ),
-                      _statItem("Students", "234"),
-                      _statItem("Rating", "4.8"),
+                      _statItem(
+                        "Students",
+                        instructorState.totalStudents.toString(),
+                      ),
+                      _statItem(
+                        "Rating",
+                        instructorState.averageRating.toString(),
+                      ),
                     ],
                   ),
                 ],
@@ -177,7 +196,7 @@ class InstructorProfileScreen extends ConsumerWidget {
 
             // Logout Button
             GestureDetector(
-              onTap: () => _showLogoutDialog(context),
+              onTap: () => _showLogoutDialog(context, ref),
               child: Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
@@ -218,7 +237,7 @@ class InstructorProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -235,9 +254,12 @@ class InstructorProfileScreen extends ConsumerWidget {
             child: Text('Cancel', style: TextStyle(color: AppTheme.textGrey)),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              context.go('/login');
+              // Clear auth state
+              await ref.read(authProvider.notifier).logout();
+              // Router will redirect, but we force navigation to login or splash
+              if (context.mounted) context.go('/login');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
