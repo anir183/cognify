@@ -2,24 +2,91 @@
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:glass_kit/glass_kit.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/metamask_service.dart';
+import '../../core/providers/auth_state.dart';
 import '../../shared/animations/ambient_background.dart';
 import '../../shared/animations/breathing_card.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _metamaskService = MetaMaskService();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isMetaMaskLoading = false;
+
+  Future<void> _authenticateWithMetaMask() async {
+    setState(() {
+      _isMetaMaskLoading = true;
+    });
+
+    try {
+      if (!_metamaskService.isMetaMaskInstalled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('MetaMask is not installed. Please install MetaMask extension.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Connect wallet
+      final wallet = await _metamaskService.connectWallet();
+      if (wallet == null) {
+        throw Exception('Failed to connect wallet');
+      }
+
+      // Authenticate with backend
+      final result = await _metamaskService.authenticate(
+        studentName: 'Student', // Will be updated after first login
+      );
+
+      if (result != null && result['success'] == true) {
+        // Update auth state
+        final authNotifier = ref.read(authProvider.notifier);
+        await authNotifier.login(
+          result['token'] ?? '',
+          role: result['role'] ?? 'student',
+          walletAddress: wallet,
+        );
+
+        if (mounted) {
+          context.go('/student-dashboard');
+        }
+      } else {
+        throw Exception('Authentication failed');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('MetaMask authentication failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isMetaMaskLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 BreathingCard(
                   glowColor: AppTheme.primaryCyan,
                   child: GlassContainer(
-                    height: 400,
+                    height: 650,
                     width: double.infinity,
                     borderRadius: BorderRadius.circular(24),
                     borderColor: Colors.white.withOpacity(0.1),
@@ -155,33 +222,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                           });
 
                                           try {
+                                            // Step 1: Validate Credentials via Backend
+                                            // Backend sends OTP to email for verification
                                             await ApiService.post('/api/login', {
-                                              'email': _emailController.text
-                                                  .trim(),
-                                              'password':
-                                                  _passwordController.text,
-                                              'role':
-                                                  'student', // Default to student
+                                              'email': _emailController.text.trim(),
+                                              'password': _passwordController.text,
+                                              'role': 'student',
                                             });
 
                                             if (mounted) {
+                                              // Step 2: Proceed to OTP Verification
                                               context.go(
-                                                '/otp-verification',
-                                                extra: {
-                                                  'email': _emailController.text
-                                                      .trim(),
-                                                  'password':
-                                                      _passwordController.text,
-                                                },
+                                                '/otp-verification?email=${Uri.encodeComponent(_emailController.text.trim())}&role=student',
                                               );
                                             }
                                           } catch (e) {
                                             if (mounted) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
+                                              ScaffoldMessenger.of(context).showSnackBar(
                                                 SnackBar(
-                                                  content: Text('Error: $e'),
+                                                  content: Text('Login Failed: $e'),
                                                   backgroundColor: Colors.red,
                                                 ),
                                               );
@@ -207,6 +266,37 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : const Text("ENTER THE REALM"),
                               ),
                             ),
+                            const SizedBox(height: 24),
+                            // Divider with "OR"
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(
+                                    color: Colors.white.withOpacity(0.2),
+                                    thickness: 1,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: Text(
+                                    'OR',
+                                    style: TextStyle(
+                                      color: AppTheme.textGrey,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(
+                                    color: Colors.white.withOpacity(0.2),
+                                    thickness: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+
                             const SizedBox(height: 16),
                             Center(
                               child: TextButton(
@@ -263,6 +353,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ).animate().fadeIn(delay: 600.ms),
+                  
+
                 ],
               ),
             ),

@@ -2,29 +2,96 @@
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:glass_kit/glass_kit.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/metamask_service.dart';
+import '../../core/providers/auth_state.dart';
 import '../../shared/animations/ambient_background.dart';
 import '../../shared/animations/breathing_card.dart';
 
-class SignupScreen extends StatefulWidget {
+class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _metamaskService = MetaMaskService();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _isMetaMaskLoading = false;
 
   double _passwordStrength = 0.0;
   String _passwordStrengthText = "";
   Color _strengthColor = Colors.grey;
+
+  Future<void> _authenticateWithMetaMask() async {
+    setState(() {
+      _isMetaMaskLoading = true;
+    });
+
+    try {
+      if (!_metamaskService.isMetaMaskInstalled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('MetaMask is not installed. Please install MetaMask extension.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Connect wallet
+      final wallet = await _metamaskService.connectWallet();
+      if (wallet == null) {
+        throw Exception('Failed to connect wallet');
+      }
+
+      // Authenticate with backend
+      final result = await _metamaskService.authenticate(
+        studentName: 'New Student', // Will be updated after first login
+      );
+
+      if (result != null && result['success'] == true) {
+        // Update auth state
+        final authNotifier = ref.read(authProvider.notifier);
+        await authNotifier.login(
+          result['token'] ?? '',
+          role: result['role'] ?? 'student',
+          walletAddress: wallet,
+        );
+
+        if (mounted) {
+          context.go('/student-dashboard');
+        }
+      } else {
+        throw Exception('Authentication failed');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('MetaMask authentication failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isMetaMaskLoading = false;
+        });
+      }
+    }
+  }
 
   void _checkPasswordStrength(String password) {
     double strength = 0;
@@ -84,7 +151,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 BreathingCard(
                   glowColor: AppTheme.accentPurple,
                   child: GlassContainer(
-                    height: 520,
+                    height: 760,
                     width: double.infinity,
                     borderRadius: BorderRadius.circular(24),
                     borderColor: Colors.white.withOpacity(0.1),
@@ -265,6 +332,81 @@ class _SignupScreenState extends State<SignupScreen> {
                                         ),
                                       )
                                     : const Text("CREATE ACCOUNT"),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // Divider with "OR"
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Divider(
+                                    color: Colors.white.withOpacity(0.2),
+                                    thickness: 1,
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                                  child: Text(
+                                    'OR',
+                                    style: TextStyle(
+                                      color: AppTheme.textGrey,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Divider(
+                                    color: Colors.white.withOpacity(0.2),
+                                    thickness: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 24),
+                            // MetaMask Sign Up Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _isMetaMaskLoading ? null : _authenticateWithMetaMask,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(
+                                      color: const Color(0xFF6366F1),
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                child: _isMetaMaskLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.account_balance_wallet,
+                                            color: const Color(0xFF6366F1),
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 12),
+                                          const Text(
+                                            'SIGN UP WITH METAMASK',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 16),

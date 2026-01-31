@@ -17,6 +17,37 @@ import (
 func GetNotificationsHandler(client *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userIDVal := r.Context().Value("userID")
+		// In mock mode, we might not have userID set by middleware if we bypassed it,
+		// but typically we should have it.
+
+		// MOCK MODE CHECK
+		if client == nil {
+			log.Println("[GetNotificationsHandler] ⚠️ Firestore client is nil. Returning MOCK notifications.")
+			mockNotifs := []models.Notification{
+				{
+					ID:        "mock_1",
+					UserID:    "mock_user",
+					Title:     "Welcome to Cognify (Mock)",
+					Body:      "This is a mock notification because database is offline.",
+					Type:      "welcome",
+					IsRead:    false,
+					CreatedAt: time.Now(),
+				},
+				{
+					ID:        "mock_2",
+					UserID:    "mock_user",
+					Title:     "System Update",
+					Body:      "Mock Mode is active. Data will not be saved.",
+					Type:      "system",
+					IsRead:    true,
+					CreatedAt: time.Now().Add(-1 * time.Hour),
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(mockNotifs)
+			return
+		}
+
 		if userIDVal == nil {
 			http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
 			return
@@ -62,6 +93,14 @@ func GetNotificationsHandler(client *firestore.Client) http.HandlerFunc {
 // MarkNotificationReadHandler marks a specific notification as read
 func MarkNotificationReadHandler(client *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// MOCK MODE CHECK
+		if client == nil {
+			// Just pretend success
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"message": "Notification marked as read (Mock)"})
+			return
+		}
+
 		notifID := chi.URLParam(r, "id")
 		if notifID == "" {
 			http.Error(w, "Notification ID required", http.StatusBadRequest)
@@ -86,6 +125,16 @@ func MarkNotificationReadHandler(client *firestore.Client) http.HandlerFunc {
 // SeedNotificationsHandler creates initial notifications for a user (for testing)
 func SeedNotificationsHandler(client *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// MOCK MODE CHECK
+		if client == nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{
+				"message": "Seeded mock notifications",
+				"userId":  "mock_user",
+			})
+			return
+		}
+
 		// Accepts userID in body to allow seeding for specific users easily
 		var req struct {
 			UserID string `json:"userId"`

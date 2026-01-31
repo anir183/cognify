@@ -10,6 +10,7 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("🏗️ BUILDING SCAFFOLD_WITH_NAV_BAR (Shell)");
     return Scaffold(
       body: AmbientBackground(child: navigationShell),
       bottomNavigationBar: GlassBottomNav(

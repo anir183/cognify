@@ -10,6 +10,7 @@ import '../../core/theme/app_animations.dart';
 import '../../shared/animations/breathing_card.dart';
 import '../../shared/animations/animated_neon_button.dart';
 
+
 import 'widgets/xp_bar.dart';
 import 'widgets/stats_grid.dart';
 import 'widgets/progress_chart.dart';
@@ -23,6 +24,7 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    debugPrint("🏗️ BUILDING DASHBOARD_SCREEN");
     final userState = ref.watch(userStateProvider);
     final profile = userState.profile;
     final hasUnread = userState.notifications.any((n) => n.isUnread);
@@ -30,6 +32,27 @@ class DashboardScreen extends ConsumerWidget {
     final isInstructor = authState.role == 'instructor';
 
     final gamification = ref.watch(gamificationProvider);
+    
+    // Show loading indicator while data is being fetched
+    if (gamification.isLoading) {
+      return Scaffold(
+        backgroundColor: AppTheme.bgBlack,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: AppTheme.primaryCyan),
+              const SizedBox(height: 16),
+              Text(
+                "Loading your dashboard...",
+                style: AppTheme.bodyMedium.copyWith(color: AppTheme.textGrey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    
     final stats = gamification.userStats;
 
     final exploreState = ref.watch(exploreProvider);
@@ -110,7 +133,7 @@ class DashboardScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        // Notifications button
+                         // Notifications button
                         GestureDetector(
                           onTap: () {
                             showModalBottomSheet(
@@ -170,11 +193,22 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
+                
+                // StatsGrid - Re-enabled
                 const StatsGrid(),
+                // const Center(child: Text("StatsGrid Placeholder", style: TextStyle(color: Colors.white))),
+                
                 const SizedBox(height: 24),
+                
                 const ProgressChart(),
+                // const Center(child: Text("ProgressChart Placeholder", style: TextStyle(color: Colors.white))),
+                
                 const SizedBox(height: 16),
+                
                 const MasteryPieChart(),
+                // const Center(child: Text("MasteryPieChart Placeholder", style: TextStyle(color: Colors.white))),
+                
+                const SizedBox(height: 24),
                 const SizedBox(height: 24),
                 Text(
                   "QUICK ACTIONS",
@@ -207,6 +241,7 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 24),
+                
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -255,5 +290,4 @@ class DashboardScreen extends ConsumerWidget {
       ),
     );
   }
-
 }

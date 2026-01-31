@@ -3,17 +3,23 @@ import '../../core/theme/app_theme.dart';
 
 class AnimatedNeonButton extends StatefulWidget {
   final String label;
+  final String? text;
   final IconData? icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final VoidCallback? onPressed;
   final Color? color;
+  final Gradient? gradient;
   final bool isPrimary;
 
   const AnimatedNeonButton({
     super.key,
-    required this.label,
-    required this.onTap,
+    this.label = '',
+    this.text,
+    this.onTap,
+    this.onPressed,
     this.icon,
     this.color,
+    this.gradient,
     this.isPrimary = false,
   });
 
@@ -47,7 +53,10 @@ class _AnimatedNeonButtonState extends State<AnimatedNeonButton> with SingleTick
 
   void _onTapUp(TapUpDetails details) {
     _controller.reverse();
-    widget.onTap();
+    final callback = widget.onTap ?? widget.onPressed;
+    if (callback != null) {
+      callback();
+    }
   }
 
   void _onTapCancel() {
@@ -70,10 +79,11 @@ class _AnimatedNeonButtonState extends State<AnimatedNeonButton> with SingleTick
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
               decoration: BoxDecoration(
-                color: widget.isPrimary ? color.withOpacity(0.1) : Colors.transparent,
+                color: widget.gradient == null ? (widget.isPrimary ? color.withOpacity(0.1) : Colors.transparent) : null,
+                gradient: widget.gradient,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: color.withOpacity(widget.isPrimary ? 0.8 : 0.3),
+                  color: widget.gradient != null ? Colors.transparent : color.withOpacity(widget.isPrimary ? 0.8 : 0.3),
                   width: 1,
                 ),
                 boxShadow: widget.isPrimary
@@ -91,13 +101,13 @@ class _AnimatedNeonButtonState extends State<AnimatedNeonButton> with SingleTick
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (widget.icon != null) ...[
-                    Icon(widget.icon, color: color, size: 20),
+                    Icon(widget.icon, color: widget.gradient != null ? Colors.white : color, size: 20),
                     const SizedBox(width: 12),
                   ],
                   Text(
-                    widget.label,
+                    widget.text ?? (widget.label.isEmpty ? '' : widget.label),
                     style: TextStyle(
-                      color: color,
+                      color: widget.gradient != null ? Colors.white : color,
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                       letterSpacing: 0.5,

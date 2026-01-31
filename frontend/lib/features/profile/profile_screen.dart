@@ -249,6 +249,12 @@ class ProfileScreen extends ConsumerWidget {
               ),
               _menuItem(
                 context,
+                Icons.verified_user_outlined,
+                "Verify Certificate",
+                () => context.push('/profile/verifycertificate'),
+              ),
+              _menuItem(
+                context,
                 Icons.privacy_tip_outlined,
                 "Privacy Policy",
                 () => context.push('/profile/privacy'),

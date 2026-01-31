@@ -2,22 +2,26 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
+	"cache-crew/cognify/internal/blockchain"
+	"cache-crew/cognify/internal/config"
 	"cache-crew/cognify/internal/db"
 	"cache-crew/cognify/internal/models"
 	"cache-crew/cognify/internal/services"
+	"cache-crew/cognify/internal/utils"
 )
 
 // GenerateCertificateRequest represents a certificate generation request
 type GenerateCertificateRequest struct {
-	UserID         string `json:"userId"`
-	UserName       string `json:"userName"`
-	CourseID       string `json:"courseId"`
-	CourseName     string `json:"courseName"`
-	CompletionData string `json:"completionData,omitempty"`
+	UserID         string  `json:"userId"`
+	UserName       string  `json:"userName"`
+	CourseID       string  `json:"courseId"`
+	CourseName     string  `json:"courseName"`
+	Marks          float64 `json:"marks,omitempty"`
+	WalletAddress  string  `json:"walletAddress,omitempty"`
+	CompletionData string  `json:"completionData,omitempty"`
 }
 
 // GenerateCertificateHandler handles certificate generation for instructors
@@ -42,39 +46,74 @@ func GenerateCertificateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Mock Certificate Content (Bypass AI as requested)
-	content := &services.CertificateContent{
-		CongratMessage: fmt.Sprintf("Congratulations %s! You have successfully completed %s with distinction. Your dedication to learning and mastery of the subject matter is truly commendable.", req.UserName, req.CourseName),
-		Skills:         []string{"Subject Mastery", "Critical Thinking", "Professional Development", "Technical Proficiency"},
-		Achievement:    "Certificate of Excellence",
-	}
-
 	issuedAt := time.Now()
 
-	// Create certificate record
+	// Generate certificate hash using new utility
+	certHash := utils.GenerateCertificateHash(req.UserID, req.CourseID, issuedAt)
+
+	// Mint certificate on blockchain (works with both mock and real)
+	var txHash string
+	var err error
+
+	if config.AppConfig.BlockchainMode == "real" {
+		realClient := blockchain.GetRealClient()
+		if realClient != nil {
+			txHash, err = realClient.MintCertificate(certHash)
+		} else {
+			// Fallback to mock if real client failed to initialize
+			mockClient := blockchain.GetMockClient()
+			txHash, err = mockClient.MintCertificate(certHash)
+		}
+	} else {
+		mockClient := blockchain.GetMockClient()
+		txHash, err = mockClient.MintCertificate(certHash)
+	}
+
+	if err != nil {
+		respondJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Failed to mint certificate on blockchain",
+		})
+		return
+	}
+
+	// Create certificate record with verification fields
 	certificate := &models.Certificate{
-		ID:          generateID(),
-		UserID:      req.UserID,
-		UserName:    req.UserName,
-		CourseID:    req.CourseID,
-		CourseTitle: req.CourseName,
-		IssuedAt:    issuedAt,
-		Skills:      content.Skills,
-		Message:     content.CongratMessage,
+		Hash:              certHash,
+		StudentID:         req.UserID,
+		StudentName:       req.UserName,
+		CourseID:          req.CourseID,
+		CourseName:        req.CourseName,
+		Marks:             req.Marks,
+		WalletAddress:     req.WalletAddress,
+		IssuedAt:          issuedAt,
+		BlockchainTx:      txHash,
+		TrustScore:        50, // Initial trust score
+		VerificationCount: 0,
 	}
 
-	// Save to Firestore if available
+	// Calculate initial trust score
+	trustEngine := services.NewTrustEngine()
+	certificate.TrustScore = trustEngine.CalculateTrustScore(r.Context(), certificate)
+
+	// Save to Firestore with hash as document ID
 	if db.FirestoreClient != nil {
-		_, _ = db.FirestoreClient.Collection("certificates").Doc(certificate.ID).Set(r.Context(), certificate)
+		_, err = db.FirestoreClient.Collection("certificates").Doc(certHash).Set(r.Context(), certificate)
+		if err != nil {
+			respondJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Failed to save certificate",
+			})
+			return
+		}
 	}
-
-	// Update instructor stats (optional but good practice)
-	// We could increment 'certificatesIssued' if we tracked it
 
 	// Return Certificate Data as JSON
 	respondJSON(w, http.StatusOK, map[string]interface{}{
-		"success": true,
-		"data":    certificate,
+		"success":         true,
+		"certificateHash": certHash,
+		"blockchainTx":    txHash,
+		"trustScore":      certificate.TrustScore,
+		"blockchainMode":  config.AppConfig.BlockchainMode,
+		"data":            certificate,
 	})
 }
 
