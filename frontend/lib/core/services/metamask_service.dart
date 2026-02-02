@@ -31,6 +31,7 @@ class MetaMaskService {
       final ethereum = (html.window as dynamic).ethereum;
       return ethereum != null;
     } catch (e) {
+      debugPrint('Error checking MetaMask installation: $e');
       return false;
     }
   }
@@ -45,7 +46,21 @@ class MetaMaskService {
     }
 
     if (!isMetaMaskInstalled) {
-      throw Exception('MetaMask is not installed');
+      // Improved Brave detection (Brave often hides itself in userAgent)
+      final navigator = html.window.navigator;
+      final isBrave = navigator.userAgent.contains('Brave') || 
+                      (navigator as dynamic).brave != null;
+      
+      debugPrint('MetaMask Installation Check: isBrave=$isBrave');
+
+      if (isBrave) {
+        throw Exception(
+          'MetaMask not detected. 1) Reset Brave Shields (click the lion icon in URL bar and toggle OFF). '
+          '2) Ensure brave://settings/wallet is set to "Extensions (no fallback)". '
+          '3) Restart Brave.'
+        );
+      }
+      throw Exception('MetaMask is not installed or not detected by the browser.');
     }
 
     try {

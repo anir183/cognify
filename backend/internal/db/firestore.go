@@ -17,13 +17,18 @@ func InitFirestore(ctx context.Context) error {
 	var app *firebase.App
 	var err error
 
+	// Use project ID if configured
+	firebaseCfg := &firebase.Config{
+		ProjectID: config.AppConfig.GoogleProjectID,
+	}
+
 	credPath := config.AppConfig.FirebaseCredentialsPath
 	if credPath != "" && credPath != "./firebase-credentials.json" {
 		opt := option.WithCredentialsFile(credPath)
-		app, err = firebase.NewApp(ctx, nil, opt)
+		app, err = firebase.NewApp(ctx, firebaseCfg, opt)
 	} else {
 		// Try default credentials (ADC)
-		app, err = firebase.NewApp(ctx, nil)
+		app, err = firebase.NewApp(ctx, firebaseCfg)
 	}
 
 	if err != nil {
