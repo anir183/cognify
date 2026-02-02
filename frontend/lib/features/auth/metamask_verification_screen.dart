@@ -38,6 +38,10 @@ class _MetaMaskVerificationScreenState extends ConsumerState<MetaMaskVerificatio
     });
 
     try {
+      if (!_metamaskService.isMetaMaskInstalled) {
+        throw Exception("MetaMask is not installed on your device.");
+      }
+
       // 1. Connect Wallet
       final wallet = await _metamaskService.connectWallet();
       if (wallet == null) throw Exception("Wallet connection rejected.");
@@ -120,142 +124,150 @@ class _MetaMaskVerificationScreenState extends ConsumerState<MetaMaskVerificatio
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
       body: AmbientBackground(
-        child: SingleChildScrollView(
-          child: Container(
-            constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height,
-            ),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Dual Identity Shield Animation
+              SizedBox(
+                height: 200,
+                width: 200,
+                child: Stack(
+                  alignment: Alignment.center,
                   children: [
-                    // Dual Identity Shield Animation
-                    SizedBox(
-                      height: 200,
-                      width: 200,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Icon(
-                            Icons.shield_outlined,
-                            size: 180,
-                            color: _isError ? Colors.red : AppTheme.primaryCyan.withOpacity(0.3),
-                          ).animate(onPlay: (c) => c.repeat(reverse: true)).fadeIn(duration: 500.ms),
+                    // Shield Background
+                    Icon(
+                      Icons.shield_outlined,
+                      size: 180,
+                      color: _isError ? Colors.red : AppTheme.primaryCyan.withOpacity(0.3),
+                    ).animate(onPlay: (c) => c.repeat(reverse: true))
+                     .fadeIn(duration: 500.ms), // Removed problematic boxShadow for stability
 
-                          if (!_isError)
-                            const Icon(Icons.email, color: Colors.white, size: 60)
-                                .animate()
-                                .slide(begin: const Offset(-2, 0), end: const Offset(0, 0), duration: 1000.ms, curve: Curves.easeOut)
-                                .fadeOut(delay: 800.ms, duration: 500.ms),
+                    // Email Identity (Fading Out/Merging)
+                    if (!_isError)
+                      const Icon(Icons.email, color: Colors.white, size: 60)
+                          .animate()
+                          .slide(begin: const Offset(-2, 0), end: const Offset(0, 0), duration: 1000.ms, curve: Curves.easeOut)
+                          .fadeOut(delay: 800.ms, duration: 500.ms),
 
-                          if (!_isError)
-                            const Icon(Icons.account_balance_wallet, color: AppTheme.accentPurple, size: 60)
-                                .animate()
-                                .slide(begin: const Offset(2, 0), end: const Offset(0, 0), duration: 1000.ms, curve: Curves.easeOut)
-                                .fadeIn(duration: 500.ms),
+                    // Wallet Identity (Fading In/Merging)
+                    if (!_isError)
+                      const Icon(Icons.account_balance_wallet, color: AppTheme.accentPurple, size: 60)
+                          .animate()
+                          .slide(begin: const Offset(2, 0), end: const Offset(0, 0), duration: 1000.ms, curve: Curves.easeOut)
+                          .fadeIn(duration: 500.ms),
 
-                          if (!_isError)
-                            Icon(Icons.verified_user, color: AppTheme.primaryCyan, size: 80)
-                                .animate(delay: 1200.ms)
-                                .fadeIn(duration: 300.ms)
-                                .scale(begin: const Offset(0.5, 0.5), end: const Offset(1, 1)),
-
-                          if (_isError) const Icon(Icons.error_outline, color: Colors.red, size: 80).animate().shake(),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 48),
-
-                    // Glass Status Panel
-                    GlassContainer(
-                      height: 250, // Increased further for detailed error messages
-                      width: 340,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      borderRadius: BorderRadius.circular(24),
-                      borderColor: _isError ? Colors.red.withOpacity(0.5) : AppTheme.primaryCyan.withOpacity(0.3),
-                      blur: 15,
-                      frostedOpacity: 0.1,
-                      color: Colors.black.withOpacity(0.5),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (_isError)
-                            Column(
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Text("Connection Failed", style: AppTheme.headlineMedium.copyWith(color: Colors.red)),
-                                ),
-                                const SizedBox(height: 8),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  child: Text(
-                                    _statusMessage,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    TextButton(onPressed: _backToLogin, child: const Text("Back")),
-                                    const SizedBox(width: 16),
-                                    ElevatedButton(
-                                      onPressed: _retry,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppTheme.primaryCyan,
-                                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                      ),
-                                      child: const Text("Manual Connect", style: TextStyle(color: Colors.black)),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  "Check if a popup was blocked or is already open.",
-                                  style: TextStyle(color: Colors.grey, fontSize: 10),
-                                ),
-                              ],
-                            )
-                          else
-                            Column(
-                              children: [
-                                Text(
-                                  "Verifying Web3 Identity",
-                                  style: AppTheme.headlineMedium.copyWith(fontSize: 20),
-                                ).animate().shimmer(duration: 2000.ms, color: AppTheme.primaryCyan),
-                                const SizedBox(height: 12),
-                                if (_walletAddress.isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.primaryCyan.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: AppTheme.primaryCyan.withOpacity(0.3)),
-                                    ),
-                                    child: Text(
-                                      _walletAddress,
-                                      style: const TextStyle(color: AppTheme.primaryCyan, fontFamily: 'Courier'),
-                                    ),
-                                  ).animate().fadeIn(),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _statusMessage,
-                                  style: const TextStyle(color: Colors.grey),
-                                ).animate(onPlay: (c) => c.repeat()).fadeIn(duration: 800.ms).fadeOut(delay: 800.ms),
-                              ],
-                            ),
-                        ],
-                      ),
-                    ),
+                    // Final Merged Lock/Check (After Merge)
+                    if (!_isError)
+                       Icon(Icons.verified_user, color: AppTheme.primaryCyan, size: 80)
+                          .animate(delay: 1200.ms)
+                          .fadeIn(duration: 300.ms)
+                          .scale(begin: const Offset(0.5, 0.5), end: const Offset(1, 1)),
+                    
+                    // Error Icon
+                    if (_isError)
+                      const Icon(Icons.error_outline, color: Colors.red, size: 80)
+                          .animate()
+                          .shake(),
                   ],
                 ),
               ),
-            ),
+
+              const SizedBox(height: 48),
+
+              // Glass Status Panel
+              GlassContainer(
+                height: 180,
+                width: 340,
+                borderRadius: BorderRadius.circular(24),
+                borderColor: _isError ? Colors.red.withOpacity(0.5) : AppTheme.primaryCyan.withOpacity(0.3),
+                blur: 15, // Frosted glass
+                frostedOpacity: 0.1,
+                color: Colors.black.withOpacity(0.5),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isError)
+                      Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              "Connection Failed",
+                              style: AppTheme.headlineMedium.copyWith(color: Colors.red),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              _statusMessage, // Now contains raw error
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              TextButton(
+                                onPressed: _backToLogin,
+                                child: const Text("Back"),
+                              ),
+                              const SizedBox(width: 16),
+                              ElevatedButton(
+                                onPressed: _retry, // This calls connectWallet
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryCyan,
+                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                ),
+                                child: const Text("Manual Connect", style: TextStyle(color: Colors.black)),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "Check if a popup was blocked or is already open.",
+                            style: TextStyle(color: Colors.grey, fontSize: 10),
+                          ),
+                        ],
+                      )
+                    else
+                      Column(
+                        children: [
+                          Text(
+                            "Verifying Web3 Identity",
+                            style: AppTheme.headlineMedium.copyWith(fontSize: 20),
+                          ).animate().shimmer(duration: 2000.ms, color: AppTheme.primaryCyan),
+                          
+                          const SizedBox(height: 12),
+                          
+                          if (_walletAddress.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryCyan.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: AppTheme.primaryCyan.withOpacity(0.3)),
+                              ),
+                              child: Text(
+                                _walletAddress,
+                                style: TextStyle(color: AppTheme.primaryCyan, fontFamily: 'Courier'),
+                              ),
+                            ).animate().fadeIn(),
+                          
+                          const SizedBox(height: 16),
+                          
+                          Text(
+                            _statusMessage,
+                            style: const TextStyle(color: Colors.grey),
+                          ).animate(onPlay: (c) => c.repeat()).fadeIn(duration: 800.ms).fadeOut(delay: 800.ms),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -2,7 +2,7 @@
 bin/
 tmp/
 
-#env files
+#env variables
 .env
 serviceAccountKey.json
 

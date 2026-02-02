@@ -2,11 +2,11 @@
 pragma solidity ^0.8.20;
 
 /**
- * @title CertificateRegistry
+ * @title SoulboundCertificateRegistry
  * @dev Smart contract for soulbound (non-transferable) academic certificates
  * @notice Certificates are permanently bound to the owner's wallet address
  */
-contract CertificateRegistry {
+contract SoulboundCertificateRegistry {
     
     // Certificate structure
     struct Certificate {
