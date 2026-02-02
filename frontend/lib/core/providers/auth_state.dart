@@ -7,12 +7,14 @@ class AuthState {
   final bool isLoading;
   final String? token;
   final String? role;
+  final String? walletAddress;
 
   const AuthState({
     this.isLoggedIn = false,
     this.isLoading = true,
     this.token,
     this.role,
+    this.walletAddress,
   });
 
   AuthState copyWith({
@@ -20,12 +22,14 @@ class AuthState {
     bool? isLoading,
     String? token,
     String? role,
+    String? walletAddress,
   }) {
     return AuthState(
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
       isLoading: isLoading ?? this.isLoading,
       token: token ?? this.token,
       role: role ?? this.role,
+      walletAddress: walletAddress ?? this.walletAddress,
     );
   }
 }
@@ -41,23 +45,29 @@ class AuthNotifier extends Notifier<AuthState> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
     final role = prefs.getString('user_role');
+    final walletAddress = prefs.getString('wallet_address');
     state = AuthState(
       isLoggedIn: token != null && token.isNotEmpty,
       isLoading: false,
       token: token,
       role: role,
+      walletAddress: walletAddress,
     );
   }
 
-  Future<void> login(String token, {String role = 'student'}) async {
+  Future<void> login(String token, {String role = 'student', String? walletAddress}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
     await prefs.setString('user_role', role);
+    if (walletAddress != null) {
+      await prefs.setString('wallet_address', walletAddress);
+    }
     state = AuthState(
       isLoggedIn: true,
       isLoading: false,
       token: token,
       role: role,
+      walletAddress: walletAddress,
     );
   }
 
@@ -66,11 +76,13 @@ class AuthNotifier extends Notifier<AuthState> {
     await prefs.remove('token');
     await prefs.remove('user_email');
     await prefs.remove('user_role');
+    await prefs.remove('wallet_address');
     state = const AuthState(
       isLoggedIn: false,
       isLoading: false,
       token: null,
       role: null,
+      walletAddress: null,
     );
   }
 

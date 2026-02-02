@@ -43,6 +43,13 @@ class AppTheme {
     color: textGrey,
   );
 
+  static TextStyle get labelSmall => GoogleFonts.outfit(
+    fontSize: 10,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 1.0,
+    color: textGrey,
+  );
+
   // Theme Data
   static ThemeData get darkTheme => ThemeData.dark().copyWith(
     scaffoldBackgroundColor: bgBlack,

@@ -10,7 +10,6 @@ import '../../core/providers/user_state.dart';
 import '../../core/providers/auth_state.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String email;
@@ -88,15 +87,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
         if (response['token'] != null) {
           await prefs.setString('token', response['token']);
-          // Update Auth Provider state explicitly with role
-          await ref
-              .read(authProvider.notifier)
-              .login(response['token'], role: userRole);
+          // DO NOT login to provider yet - wait for wallet verification
+          // await ref.read(authProvider.notifier).login(response['token'], role: userRole);
         }
-        await prefs.setString(
-          'user_email',
-          widget.email,
-        ); // Save email for updates
+        await prefs.setString('user_email', widget.email); // Save email for updates
 
         // No manual redirect needed as AuthProvider listener in Router will handle it
         // based on the role we just set.
@@ -107,12 +101,15 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
         // Wait a tick to let the router process the auth state change if it wants
         if (mounted) {
-          // Redirect based on role
-          if (userRole == 'instructor') {
-            context.go('/instructor/dashboard');
-          } else {
-            context.go('/dashboard');
-          }
+          // Redirect to wallet verification for 2FA completion
+          context.go(
+            '/verify-wallet',
+            extra: {
+              'email': widget.email,
+              'role': userRole,
+              'user': response['user'],
+            },
+          );
         }
       } else {
         setState(() {

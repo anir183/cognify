@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'glass_bottom_nav.dart';
+import '../animations/ambient_background.dart';
 
 class ScaffoldWithNavBar extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -9,8 +10,9 @@ class ScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("🏗️ BUILDING SCAFFOLD_WITH_NAV_BAR (Shell)");
     return Scaffold(
-      body: navigationShell,
+      body: AmbientBackground(child: navigationShell),
       bottomNavigationBar: GlassBottomNav(
         currentIndex: navigationShell.currentIndex,
         onTap: (index) {

@@ -4,6 +4,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/instructor_state.dart';
+import '../../../core/providers/auth_state.dart';
+import '../certificates/instructor_mint_certificate_panel.dart';
 
 class InstructorCertificatesScreen extends ConsumerStatefulWidget {
   const InstructorCertificatesScreen({super.key});
@@ -123,6 +125,43 @@ class _InstructorCertificatesScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Mint Certificate Panel Section
+            Consumer(
+              builder: (context, ref, _) {
+                final authState = ref.watch(authProvider);
+                final instructorState = ref.watch(instructorStateProvider);
+                
+                if (authState.walletAddress == null) {
+                  return const SizedBox.shrink();
+                }
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'MINT CERTIFICATE',
+                      style: AppTheme.labelLarge.copyWith(color: Colors.orange),
+                    ),
+                    const SizedBox(height: 16),
+                    InstructorMintCertificatePanel(
+                      instructorWallet: authState.walletAddress!,
+                      instructorName: instructorState.name,
+                    ).animate().fadeIn(duration: 600.ms),
+                    const SizedBox(height: 32),
+                    Divider(color: Colors.orange.withOpacity(0.2)),
+                    const SizedBox(height: 32),
+                  ],
+                );
+              },
+            ),
+            
+            // Certificate Generator Section
+            Text(
+              'GENERATE CERTIFICATE',
+              style: AppTheme.labelLarge.copyWith(color: Colors.orange),
+            ),
+            const SizedBox(height: 16),
+            
             // Certificate Preview
             Container(
               width: double.infinity,

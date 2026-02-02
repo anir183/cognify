@@ -6,6 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/instructor_state.dart';
 import '../../../core/providers/user_state.dart';
 import '../../../core/providers/auth_state.dart';
+import '../../../shared/animations/ambient_background.dart';
+import '../../../shared/animations/breathing_card.dart';
 
 class InstructorProfileScreen extends ConsumerWidget {
   const InstructorProfileScreen({super.key});
@@ -16,12 +18,13 @@ class InstructorProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.bgBlack,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            // Profile Header
+      body: AmbientBackground(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              const SizedBox(height: 40),
+              // Profile Header
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -98,6 +101,44 @@ class InstructorProfileScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  // Verified Instructor Authority Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF6366F1).withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.verified,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'VERIFIED AUTHORITY',
+                          style: AppTheme.labelSmall.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ).animate().fadeIn(delay: 300.ms).scale(begin: const Offset(0.8, 0.8)),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -125,6 +166,12 @@ class InstructorProfileScreen extends ConsumerWidget {
             // Menu Items
             _menuItem(
               context,
+              Icons.card_membership,
+              "Manage Certificates",
+              () => context.push('/profile/certificates'), // Reusing certificate screen as history/manage
+            ),
+            _menuItem(
+              context,
               Icons.edit_outlined,
               "Edit Profile",
               () => context.push('/instructor/profile/edit'),
@@ -146,6 +193,12 @@ class InstructorProfileScreen extends ConsumerWidget {
               Icons.forum_outlined,
               "Community Forum",
               () => context.push('/instructor/forum'),
+            ),
+            _menuItem(
+              context,
+              Icons.verified_user_outlined,
+              "Verify Certificate",
+              () => context.push('/profile/verifycertificate'),
             ),
 
             const SizedBox(height: 8),
@@ -233,6 +286,7 @@ class InstructorProfileScreen extends ConsumerWidget {
             const SizedBox(height: 100),
           ],
         ),
+      ),
       ),
     );
   }

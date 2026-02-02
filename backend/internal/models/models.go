@@ -3,21 +3,37 @@ package models
 import "time"
 
 type User struct {
-	ID             string `json:"id" firestore:"id"`
-	Email          string `json:"email" firestore:"email"`
-	Name           string `json:"name" firestore:"name"`
-	Username       string `json:"username" firestore:"username"`
-	Role           string `json:"role" firestore:"role"` // "student" or "instructor"
-	ProfilePicture string `json:"profilePicture" firestore:"profilePicture"`
-	AvatarEmoji    string `json:"avatarEmoji" firestore:"avatarEmoji"`
-	// sensitive data like Password should be marked to exclude from JSON if needed, but for internal model it's fine
-	// or use json:"-" to never send it to client
-	Password    string    `json:"-" firestore:"password"`
-	Institution string    `json:"institution" firestore:"institution"`
-	XP          int       `json:"xp" firestore:"xp"`
-	Level       int       `json:"level" firestore:"level"`
-	CreatedAt   time.Time `json:"createdAt" firestore:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt" firestore:"updatedAt"`
+	ID              string    `json:"id,omitempty" firestore:"id,omitempty"`
+	Email           string    `json:"email" firestore:"email"`
+	Name            string    `json:"name" firestore:"name"`
+	Username        string    `json:"username" firestore:"username"`
+	Role            string    `json:"role" firestore:"role"` // "student" or "instructor"
+	CreatedAt       time.Time `json:"createdAt" firestore:"created_at"`
+	ProfileImageURL string    `json:"profileImageUrl,omitempty" firestore:"profile_image_url,omitempty"`
+
+	// Legacy fields (for backward compatibility with old auth)
+	Password       string    `json:"-" firestore:"password,omitempty"`
+	Institution    string    `json:"institution,omitempty" firestore:"institution,omitempty"`
+	XP             int       `json:"xp,omitempty" firestore:"xp,omitempty"`
+	Level          int       `json:"level,omitempty" firestore:"level,omitempty"`
+	UpdatedAt      time.Time `json:"updatedAt,omitempty" firestore:"updatedAt,omitempty"`
+	ProfilePicture string    `json:"profilePicture,omitempty" firestore:"profilePicture,omitempty"`
+	AvatarEmoji    string    `json:"avatarEmoji,omitempty" firestore:"avatarEmoji,omitempty"`
+
+	// MetaMask Wallet Authentication
+	WalletAddress   string    `json:"walletAddress,omitempty" firestore:"wallet_address,omitempty"`
+	ReputationScore int       `json:"reputationScore,omitempty" firestore:"reputation_score,omitempty"`
+	LastLogin       time.Time `json:"lastLogin,omitempty" firestore:"last_login,omitempty"`
+	StudentName     string    `json:"studentName,omitempty" firestore:"student_name,omitempty"`
+
+	// Academic DNA Identity
+	AcademicDNA    string    `json:"academicDNA,omitempty" firestore:"academic_dna,omitempty"`
+	DNAGeneratedAt time.Time `json:"dnaGeneratedAt,omitempty" firestore:"dna_generated_at,omitempty"`
+	StudentID      string    `json:"studentId,omitempty" firestore:"student_id,omitempty"`
+
+	// Instructor-specific fields
+	InstructorName string `json:"instructorName,omitempty" firestore:"instructor_name,omitempty"`
+	IsAuthorized   bool   `json:"isAuthorized,omitempty" firestore:"is_authorized,omitempty"`
 }
 
 type Course struct {
@@ -87,18 +103,41 @@ type Comment struct {
 	UpvotedBy   []string  `json:"upvotedBy" firestore:"upvotedBy"`
 	DownvotedBy []string  `json:"downvotedBy" firestore:"downvotedBy"`
 	CreatedAt   time.Time `json:"createdAt" firestore:"createdAt"`
+	ParentID    string    `json:"parentId,omitempty" firestore:"parentId,omitempty"` // Added for replies
 }
 
 type Certificate struct {
-	ID          string    `json:"id" firestore:"id"`
-	UserID      string    `json:"userId" firestore:"userId"`
-	UserName    string    `json:"userName" firestore:"userName"`
-	CourseID    string    `json:"courseId" firestore:"courseId"`
-	CourseTitle string    `json:"courseTitle" firestore:"courseTitle"`
+	// Legacy fields (for backward compatibility)
+	ID          string    `json:"id,omitempty" firestore:"id,omitempty"`
+	UserID      string    `json:"userId,omitempty" firestore:"userId,omitempty"`
+	UserName    string    `json:"userName,omitempty" firestore:"userName,omitempty"`
+	CourseID    string    `json:"courseId,omitempty" firestore:"courseId,omitempty"`
+	CourseTitle string    `json:"courseTitle,omitempty" firestore:"courseTitle,omitempty"`
 	IssuedAt    time.Time `json:"issuedAt" firestore:"issuedAt"`
-	Skills      []string  `json:"skills" firestore:"skills"`
-	Message     string    `json:"message" firestore:"message"`
-	PDFUrl      string    `json:"pdfUrl" firestore:"pdfUrl"`
+	Skills      []string  `json:"skills,omitempty" firestore:"skills,omitempty"`
+	Message     string    `json:"message,omitempty" firestore:"message,omitempty"`
+	PDFUrl      string    `json:"pdfUrl,omitempty" firestore:"pdfUrl,omitempty"`
+
+	// Blockchain Verification Fields (NEW)
+	Hash              string  `firestore:"hash" json:"hash,omitempty"`
+	StudentID         string  `firestore:"student_id" json:"studentId,omitempty"`
+	StudentName       string  `firestore:"student_name" json:"studentName,omitempty"`
+	CourseName        string  `firestore:"course_name" json:"courseName,omitempty"`
+	Marks             float64 `firestore:"marks" json:"marks,omitempty"`
+	WalletAddress     string  `firestore:"wallet_address" json:"walletAddress,omitempty"`
+	BlockchainTx      string  `firestore:"blockchain_tx" json:"blockchainTx,omitempty"`
+	IPFSCID           string  `firestore:"ipfs_cid" json:"ipfsCid,omitempty"`
+	TrustScore        int     `firestore:"trust_score" json:"trustScore,omitempty"`
+	VerificationCount int     `firestore:"verification_count" json:"verificationCount,omitempty"`
+	Revoked           bool    `firestore:"revoked" json:"revoked,omitempty"`
+	IsMinted          bool    `firestore:"is_minted" json:"isMinted,omitempty"`
+
+	// Academic DNA Identity (NEW)
+	AcademicDNA string `firestore:"academic_dna" json:"academicDNA,omitempty"`
+
+	// Instructor Information (NEW)
+	InstructorWallet string `firestore:"instructor_wallet" json:"instructorWallet,omitempty"`
+	InstructorName   string `firestore:"instructor_name" json:"instructorName,omitempty"`
 }
 
 // Question represents a battle question
@@ -173,4 +212,43 @@ type ActivityItem struct {
 	Title     string    `json:"title" firestore:"title"`
 	Subtitle  string    `json:"subtitle" firestore:"subtitle"`
 	Timestamp time.Time `json:"timestamp" firestore:"timestamp"`
+}
+
+// SystemState tracks global system state like blockchain sync progress
+type SystemState struct {
+	ID              string    `json:"id" firestore:"id"` // "sync_state"
+	LastSyncedBlock uint64    `json:"lastSyncedBlock" firestore:"last_synced_block"`
+	UpdatedAt       time.Time `json:"updatedAt" firestore:"updated_at"`
+}
+
+// -------------------------------------------------------------------
+// TRUST INTELLIGENCE MODELS
+// -------------------------------------------------------------------
+
+// IssuerReputation tracks the long-term trustworthiness of an instructor
+type IssuerReputation struct {
+	InstructorID    string    `json:"instructorId" firestore:"instructor_id"`
+	TotalIssued     int       `json:"totalIssued" firestore:"total_issued"`
+	RevocationCount int       `json:"revocationCount" firestore:"revocation_count"`
+	AvgTrustScore   float64   `json:"avgTrustScore" firestore:"avg_trust_score"`
+	ReputationScore float64   `json:"reputationScore" firestore:"reputation_score"` // 0-100
+	UpdatedAt       time.Time `json:"updatedAt" firestore:"updated_at"`
+}
+
+// TrustHistoryEvent records a snapshot of a certificate's trust score
+type TrustHistoryEvent struct {
+	CertificateHash string    `firestore:"certificate_hash" json:"certificateHash"`
+	Score           int       `firestore:"score" json:"score"`
+	Reason          string    `firestore:"reason" json:"reason"` // e.g. "verification", "manual_update"
+	Timestamp       time.Time `firestore:"timestamp" json:"timestamp"`
+}
+
+// VerificationMetric tracks aggregated verification testing data
+type VerificationMetric struct {
+	CertificateHash    string         `json:"certificateHash" firestore:"certificate_hash"`
+	TotalVerifications int            `json:"totalVerifications" firestore:"total_verifications"`
+	UniqueVerifiers    int            `json:"uniqueVerifiers" firestore:"unique_verifiers"`
+	GeoDistribution    map[string]int `json:"geoDistribution" firestore:"geo_distribution"` // "US": 5, "IN": 12
+	LastVerifiedAt     time.Time      `json:"lastVerifiedAt" firestore:"last_verified_at"`
+	VerificationTrend  map[string]int `json:"verificationTrend" firestore:"verification_trend"` // "2023-10": 45
 }

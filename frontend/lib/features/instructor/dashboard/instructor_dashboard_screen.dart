@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/instructor_state.dart';
 import '../../../core/providers/user_state.dart';
+import '../../../core/providers/auth_state.dart';
+import '../screens/instructor_analytics_screen.dart';
 
 class InstructorDashboardScreen extends ConsumerWidget {
   const InstructorDashboardScreen({super.key});
@@ -13,6 +15,27 @@ class InstructorDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final instructorState = ref.watch(instructorStateProvider);
     final userState = ref.watch(userStateProvider);
+    final authState = ref.watch(authProvider);
+
+    // Show loading state if auth data is not ready
+    if (authState.walletAddress == null || authState.walletAddress!.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppTheme.bgBlack,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: Colors.orange),
+              const SizedBox(height: 16),
+              Text(
+                'Loading instructor dashboard...',
+                style: AppTheme.bodyMedium.copyWith(color: AppTheme.textGrey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     // Ensure we have fresh stats
     // Note: We're doing this in build for simplicity but usually better in initState or router listener
@@ -33,53 +56,59 @@ class InstructorDashboardScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.orange.withOpacity(0.5),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.orange.withOpacity(0.5),
+                                ),
+                              ),
+                              child: const Text(
+                                'INSTRUCTOR',
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            child: const Text(
-                              'INSTRUCTOR',
-                              style: TextStyle(
-                                color: Colors.orange,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Welcome back,",
+                          style: AppTheme.bodyMedium.copyWith(
+                            color: AppTheme.textGrey,
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Welcome back,",
-                        style: AppTheme.bodyMedium.copyWith(
-                          color: AppTheme.textGrey,
                         ),
-                      ),
-                      Text(
-                        instructorState.name.isNotEmpty
-                            ? instructorState.name
-                            : "Instructor",
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                        Text(
+                          instructorState.name.isNotEmpty
+                              ? instructorState.name
+                              : "Instructor",
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(
+                    width: 16,
+                  ), // Add spacing between text and avatar
                   Container(
                     width: 50,
                     height: 50,
@@ -103,49 +132,55 @@ class InstructorDashboardScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // Stats Grid
-              Row(
-                children: [
-                  Expanded(
-                    child: _statCard(
-                      'Total Students',
-                      '${instructorState.totalStudents}',
-                      Icons.people,
-                      Colors.blue,
+              SizedBox(
+                height: 120,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _statCard(
+                        'Total Students',
+                        '${instructorState.totalStudents}',
+                        Icons.people,
+                        Colors.blue,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _statCard(
-                      'Active Courses',
-                      // Use the actual count from backend stats
-                      '${instructorState.activeCoursesCount}',
-                      Icons.book,
-                      Colors.green,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _statCard(
+                        'Active Courses',
+                        // Use the actual count from backend stats
+                        '${instructorState.activeCoursesCount}',
+                        Icons.book,
+                        Colors.green,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _statCard(
-                      'Completion Rate',
-                      '${instructorState.completionRate}%',
-                      Icons.trending_up,
-                      Colors.purple,
+              SizedBox(
+                height: 120,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _statCard(
+                        'Completion Rate',
+                        '${instructorState.completionRate}%',
+                        Icons.trending_up,
+                        Colors.purple,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _statCard(
-                      'Avg. Rating',
-                      '${instructorState.averageRating}',
-                      Icons.star,
-                      Colors.amber,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _statCard(
+                        'Avg. Rating',
+                        '${instructorState.averageRating}',
+                        Icons.star,
+                        Colors.amber,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -179,51 +214,55 @@ class InstructorDashboardScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 12),
+              // NEW BUTTON FOR TRUST ANALYTICS
               Row(
                 children: [
                   Expanded(
                     child: _actionButton(
                       context,
-                      Icons.analytics_outlined,
-                      'View Analytics',
-                      Colors.blue,
-                      () => context.go('/instructor/tracking'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _actionButton(
-                      context,
-                      Icons.card_giftcard,
-                      'Certificates',
-                      Colors.green,
-                      () => context.go('/instructor/certificates'),
+                      Icons.verified_user_outlined,
+                      'Trust & Reputation',
+                      const Color(0xFF10B981),
+                      () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => InstructorAnalyticsScreen(
+                              walletAddress: authState.walletAddress!,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
+              // Recent Activity
               Text(
                 'RECENT ACTIVITY',
                 style: AppTheme.labelLarge.copyWith(color: Colors.orange),
               ),
               const SizedBox(height: 12),
               if (instructorState.recentActivity.isEmpty)
-                Text(
-                  "No recent activity",
-                  style: TextStyle(color: AppTheme.textGrey),
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Text('No recent activity'),
+                  ),
                 )
               else
-                ...instructorState.recentActivity.map((activity) {
-                  return _activityItem(
-                    activity.title,
-                    activity.subtitle,
-                    _getTimeAgo(activity.timestamp),
-                    _getActivityIcon(activity.type),
-                    _getActivityColor(activity.type),
-                  );
-                }),
+                Column(
+                  children: instructorState.recentActivity.map((activity) {
+                    return _activityItem(
+                      activity.title,
+                      activity.subtitle,
+                      _getTimeAgo(activity.timestamp),
+                      _getActivityIcon(activity.type),
+                      _getActivityColor(activity.type),
+                    );
+                  }).toList(),
+                ),
 
               const SizedBox(height: 100),
             ],
@@ -234,32 +273,35 @@ class InstructorDashboardScreen extends ConsumerWidget {
   }
 
   Widget _statCard(String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: color,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
-          ),
-          Text(label, style: TextStyle(color: AppTheme.textGrey, fontSize: 12)),
-        ],
+            Text(
+              label,
+              style: TextStyle(color: AppTheme.textGrey, fontSize: 12),
+            ),
+          ],
+        ),
       ),
-    ).animate().fadeIn().scale(
-      begin: const Offset(0.95, 0.95),
-      end: const Offset(1, 1),
     );
   }
 

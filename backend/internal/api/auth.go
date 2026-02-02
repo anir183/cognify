@@ -29,6 +29,14 @@ type VerifyOTPRequest struct {
 	Code  string `json:"code"`
 }
 
+// SignupRequest represents the signup request body
+type SignupRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+	Name     string `json:"name"`
+}
+
 // AuthResponse represents the authentication response
 type AuthResponse struct {
 	Success bool         `json:"success"`
@@ -61,12 +69,36 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// MOCK MODE CHECK
+	if db.FirestoreClient == nil {
+		log.Println("[LoginHandler] ⚠️ Firestore not initialized. Using MOCK login flow.")
+		// In mock mode, accept any password and return mock user
+		mockUser := models.User{
+			ID:          req.Email,
+			Email:       req.Email,
+			Name:        "Mock User",
+			Username:    req.Email,
+			Role:        req.Role,
+			XP:          500,
+			Level:       5,
+			AvatarEmoji: "🥷",
+			CreatedAt:   time.Now(),
+		}
+
+		respondJSON(w, http.StatusOK, AuthResponse{
+			Success: true,
+			Message: "Credentials validated (Mock Mode). Proceeding to wallet verification.",
+			User:    &mockUser,
+		})
+		return
+	}
+
 	// Check if user exists and get password
 	var user models.User
 	doc, err := db.FirestoreClient.Collection("users").Doc(req.Email).Get(r.Context())
 	if err != nil {
 		// Assume user not found or error
-		respondJSON(w, http.StatusNotFound, AuthResponse{Success: false, Message: "User not found. Please sign up."})
+		respondJSON(w, http.StatusUnauthorized, AuthResponse{Success: false, Message: "User not found. Please sign up."})
 		return
 	}
 	if err := doc.DataTo(&user); err != nil {
@@ -76,12 +108,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Verify Password
 	if user.Password == "" {
-		// Allow legacy login if user has no password enabled?
-		// User requested SECURITY flaw fix. So strict.
-		// But for now, if no password set, maybe allow?
-		// No, user specifically complained about "anyone can log in".
-		// So force password check.
-		respondJSON(w, http.StatusUnauthorized, AuthResponse{Success: false, Message: "Password authentication required. Please contact support or reset password."})
+		respondJSON(w, http.StatusUnauthorized, AuthResponse{Success: false, Message: "Password authentication required."})
 		return
 	}
 
@@ -90,30 +117,23 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate OTP
+	// 2FA Flow: Password Verified -> Generate and Send OTP
 	otp, err := services.GenerateOTP(req.Email)
 	if err != nil {
-		respondJSON(w, http.StatusInternalServerError, AuthResponse{
-			Success: false,
-			Message: "Failed to generate OTP",
-		})
+		respondJSON(w, http.StatusInternalServerError, AuthResponse{Success: false, Message: "Failed to generate OTP"})
 		return
 	}
 
-	// Send OTP via email
 	if err := services.SendOTPEmail(req.Email, otp); err != nil {
-		respondJSON(w, http.StatusInternalServerError, AuthResponse{
-			Success: false,
-			Message: "Failed to send OTP email",
-		})
+		respondJSON(w, http.StatusInternalServerError, AuthResponse{Success: false, Message: "Failed to send OTP email"})
 		return
 	}
 
-	// Log attempt to BigQuery
+	// Log attempt
 	go func() {
 		_ = db.InsertAnalyticsEvent(r.Context(), db.AnalyticsEvent{
 			UserID:    req.Email,
-			EventType: "auth_attempt",
+			EventType: "password_verified_otp_sent",
 			Data:      "{\"role\":\"" + req.Role + "\"}",
 			Timestamp: time.Now().Unix(),
 		})
@@ -121,7 +141,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, AuthResponse{
 		Success: true,
-		Message: "Password verified. OTP sent to your email.",
+		Message: "Credentials validated. OTP sent.",
+		User:    &user, // Optional: return user details if needed for next step
 	})
 }
 
@@ -132,7 +153,7 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req LoginRequest // Re-use LoginRequest struct as it has Email/Role
+	var req SignupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondJSON(w, http.StatusBadRequest, AuthResponse{Success: false, Message: "Invalid request body"})
 		return
@@ -150,8 +171,15 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create user with hashed password (marked as unverified implicitly by lack of token usage initially, but we allow Login flow to handle 2FA)
-	// We create the user doc now so Login can verify the password.
+	// Determine name/username
+	userName := req.Name
+	log.Printf("[SignupHandler] Received Request - Email: %s, Name: '%s', Role: %s", req.Email, req.Name, req.Role)
+	if userName == "" {
+		userName = extractNameFromEmail(req.Email)
+		log.Printf("[SignupHandler] Name empty, extracted from email: %s", userName)
+	}
+
+	// Create user with hashed password
 	newUser := map[string]interface{}{
 		"id":        req.Email,
 		"email":     req.Email,
@@ -163,8 +191,8 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 		"xp":          0,
 		"level":       1,
 		"avatarEmoji": "🥷",
-		"name":        "User", // Simplified name extraction
-		"username":    req.Email,
+		"name":        userName,
+		"username":    userName,
 	}
 
 	if db.FirestoreClient != nil {
@@ -276,6 +304,14 @@ func VerifyOTPHandler(w http.ResponseWriter, r *http.Request) {
 			Data:      "{\"role\":\"" + user.Role + "\"}",
 			Timestamp: time.Now().Unix(),
 		})
+	}()
+
+	// Update Streak & LastLogin
+	go func() {
+		err := updateUsageStreak(context.Background(), user.ID)
+		if err != nil {
+			log.Printf("Failed to update streak for %s: %v", user.ID, err)
+		}
 	}()
 
 	respondJSON(w, http.StatusOK, AuthResponse{
@@ -456,4 +492,58 @@ func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
+}
+
+// updateUsageStreak calculates and updates the user's daily streak
+func updateUsageStreak(ctx context.Context, userID string) error {
+	if db.FirestoreClient == nil {
+		return nil
+	}
+
+	statsRef := db.FirestoreClient.Collection("user_stats").Doc(userID)
+	doc, err := statsRef.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	var stats models.UserStats
+	if err := doc.DataTo(&stats); err != nil {
+		return err
+	}
+
+	now := time.Now()
+	lastLogin := stats.LastLogin
+
+	// Calculate difference in days (ignoring time)
+	// Truncate to midnight for comparison
+	d1 := time.Date(lastLogin.Year(), lastLogin.Month(), lastLogin.Day(), 0, 0, 0, 0, time.UTC)
+	d2 := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	daysDiff := int(d2.Sub(d1).Hours() / 24)
+
+	if daysDiff == 1 {
+		// Login is exactly next day -> Increment streak
+		stats.CurrentStreak++
+		if stats.CurrentStreak > stats.LongestStreak {
+			stats.LongestStreak = stats.CurrentStreak
+		}
+	} else if daysDiff > 1 {
+		// Missed a day -> Reset streak
+		stats.CurrentStreak = 1
+	} else if daysDiff == 0 {
+		// Same day -> Do nothing (unless first ever login where lastLogin is zero time)
+		if lastLogin.IsZero() {
+			stats.CurrentStreak = 1
+			stats.LongestStreak = 1
+		}
+	}
+
+	stats.LastLogin = now
+	_, err = statsRef.Set(ctx, stats, firestore.MergeAll)
+
+	// Check Achievements Async
+	if err == nil {
+		go CheckAndUnlockAchievements(context.Background(), userID, stats)
+	}
+
+	return err
 }

@@ -25,6 +25,8 @@ import '../../features/profile/screens/help_support_screen.dart';
 import '../../features/profile/screens/privacy_policy_screen.dart';
 import '../../features/profile/screens/service_agent_chat_screen.dart';
 import '../../features/leaderboard/leaderboard_screen.dart';
+import '../../features/certificates/screens/certificates_screen.dart';
+import '../../features/certificates/screens/certificate_verification_screen.dart';
 import '../../shared/widgets/scaffold_with_nav_bar.dart';
 
 // Instructor Imports
@@ -40,6 +42,9 @@ import '../../features/instructor/shared/instructor_shell.dart';
 import '../../features/instructor/profile/instructor_edit_profile_screen.dart';
 import '../../features/instructor/forum/instructor_forum_screen.dart';
 import '../../features/instructor/certificates/certificate_history_screen.dart';
+import '../../features/wallet/wallet_connect_screen.dart';
+import '../../features/certificates/public_certificate_verification_screen.dart';
+import '../../features/auth/metamask_verification_screen.dart'; // NEW Verify Import
 
 /// Routes that do NOT require authentication
 const _publicRoutes = [
@@ -47,12 +52,15 @@ const _publicRoutes = [
   '/onboarding',
   '/login',
   '/signup',
-  '/otp-verification',
+  '/otp-verification', // Fixed: Matches route definition
   '/forgot-password',
   '/reset-password-otp',
   '/reset-password',
   '/instructor/login',
   '/instructor/signup',
+  '/verify-certificate', // NEW: Public certificate verification
+  '/certificate-verification',
+  '/verify-wallet', // NEW: Mandatory 2FA Route
 ];
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -146,6 +154,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
+        path: '/verify-wallet',
+        builder: (context, state) {
+           final extra = state.extra as Map<String, dynamic>?;
+           return MetaMaskVerificationScreen(extra: extra);
+        },
+      ),
+      GoRoute(
         path: '/forgot-password',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
@@ -169,6 +184,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ResetPasswordScreen(email: email);
         },
       ),
+      
+      // MetaMask Wallet Connection
+      GoRoute(
+        path: '/wallet-connect',
+        builder: (context, state) => const WalletConnectScreen(),
+      ),
       GoRoute(
         path: '/course/:id',
         builder: (context, state) =>
@@ -185,6 +206,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
+      
+      // Public Certificate Verification (No auth required)
+      GoRoute(
+        path: '/verify-certificate',
+        builder: (context, state) => const PublicCertificateVerificationScreen(),
+      ),
+      
       GoRoute(
         path: '/forum/create',
         builder: (context, state) => const CreatePostScreen(),
@@ -228,6 +256,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PrivacyPolicyScreen(),
       ),
       GoRoute(
+        path: '/profile/certificates',
+        builder: (context, state) => const CertificatesScreen(),
+      ),
+      GoRoute(
+        path: '/certificate-verification',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final hash = extra['hash'] as String? ?? 
+                      state.uri.queryParameters['hash'];
+          return CertificateVerificationScreen(initialHash: hash);
+        },
+      ),
+      GoRoute(
         path: '/profile/help/chat',
         builder: (context, state) => const ServiceAgentChatScreen(),
       ),
@@ -256,6 +297,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/instructor/certificates/history',
         builder: (context, state) => const CertificateHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/instructor/profile/verifycertificate',
+        builder: (context, state) => const CertificateVerificationScreen(),
+      ),
+      GoRoute(
+        path: '/profile/verifycertificate',
+        builder: (context, state) => const CertificateVerificationScreen(),
       ),
 
       // Student Shell
