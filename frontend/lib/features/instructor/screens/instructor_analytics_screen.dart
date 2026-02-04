@@ -39,7 +39,7 @@ class _InstructorAnalyticsScreenState extends State<InstructorAnalyticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E27),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: const Text('Instructor Analytics', style: TextStyle(color: Colors.white)),

@@ -17,9 +17,8 @@ class InstructorProfileScreen extends ConsumerWidget {
     final instructorState = ref.watch(instructorStateProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
-      body: AmbientBackground(
-        child: SingleChildScrollView(
+      backgroundColor: Colors.transparent,
+      body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
@@ -286,7 +285,6 @@ class InstructorProfileScreen extends ConsumerWidget {
             const SizedBox(height: 100),
           ],
         ),
-      ),
       ),
     );
   }

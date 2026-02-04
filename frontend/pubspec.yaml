@@ -47,7 +47,9 @@ dependencies:
   path_provider: ^2.1.5
   pdf: ^3.11.1
   printing: ^5.13.4
-  file_picker: ^8.1.4
+  file_picker: ^5.3.3
+  share_plus: ^10.0.0
+  sqflite: ^2.2.8+4
   mobile_scanner: ^6.0.4
   
   # Web3 & Wallet Integration
@@ -66,6 +68,8 @@ dependencies:
   screenshot: ^3.0.0
   syncfusion_flutter_charts: ^27.2.5
   qr_flutter: ^4.1.0
+  audioplayers: ^6.0.0
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:
@@ -90,11 +94,9 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
-
-  # An image asset can refer to one or more resolution-specific "variants", see
+  assets:
+    - assets/images/
+    - assets/json/
   # https://flutter.dev/to/resolution-aware-images
 
   # For details regarding adding assets from package dependencies, see

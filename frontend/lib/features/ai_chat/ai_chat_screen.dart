@@ -258,7 +258,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     final controller = ref.read(chatProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [

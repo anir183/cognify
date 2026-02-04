@@ -7,8 +7,12 @@ import '../../core/theme/app_theme.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/metamask_service.dart';
 import '../../core/providers/auth_state.dart';
+import '../../core/services/audio_service.dart';
+import '../../core/constants/app_sounds.dart';
+import '../../core/providers/user_state.dart';
 import '../../shared/animations/ambient_background.dart';
 import '../../shared/animations/breathing_card.dart';
+import '../../core/widgets/app_button.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -93,10 +97,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
-      body: AmbientBackground(
-        child: Center(
-          child: SingleChildScrollView(
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -223,73 +226,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     ),
                                   ),
                                   const SizedBox(height: 16),
+                                  const SizedBox(height: 16),
                                   SizedBox(
                                     width: double.infinity,
-                                    child: ElevatedButton(
-                                      onPressed: _isLoading
-                                          ? null
-                                          : () async {
-                                              if (_formKey.currentState!
-                                                  .validate()) {
-                                                setState(() {
-                                                  _isLoading = true;
-                                                });
+                                    child: AppButton(
+                                      label: "ENTER THE REALM",
+                                      isLoading: _isLoading,
+                                      onPressed: () async {
+                                        if (_formKey.currentState!.validate()) {
+                                          setState(() {
+                                            _isLoading = true;
+                                          });
 
-                                                try {
-                                                  // Step 1: Validate Credentials via Backend
-                                                  // Backend sends OTP to email for verification
-                                                  await ApiService.post(
-                                                    '/api/login',
-                                                    {
-                                                      'email': _emailController
-                                                          .text
-                                                          .trim(),
-                                                      'password':
-                                                          _passwordController
-                                                              .text,
-                                                      'role': 'student',
-                                                    },
-                                                  );
+                                          try {
+                                            // Step 1: Validate Credentials via Backend
+                                            await ApiService.post(
+                                              '/api/login',
+                                              {
+                                                'email': _emailController.text.trim(),
+                                                'password': _passwordController.text,
+                                                'role': 'student',
+                                              },
+                                            );
 
-                                                  if (mounted) {
-                                                    // Step 2: Proceed to OTP Verification
-                                                    context.go(
-                                                      '/otp-verification?email=${Uri.encodeComponent(_emailController.text.trim())}&role=student',
-                                                    );
-                                                  }
-                                                } catch (e) {
-                                                  if (mounted) {
-                                                    ScaffoldMessenger.of(
-                                                      context,
-                                                    ).showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                          'Login Failed: $e',
-                                                        ),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                      ),
-                                                    );
-                                                  }
-                                                } finally {
-                                                  if (mounted) {
-                                                    setState(() {
-                                                      _isLoading = false;
-                                                    });
-                                                  }
-                                                }
-                                              }
-                                            },
-                                      child: _isLoading
-                                          ? const SizedBox(
-                                              height: 20,
-                                              width: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : const Text("ENTER THE REALM"),
+                                            if (mounted) {
+                                              // Play entry sound
+                                              final settings = ref.read(userStateProvider).settings;
+                                              AudioService().play(SoundType.login, settings.soundEffects);
+
+                                              // Step 2: Proceed to OTP Verification
+                                              context.go(
+                                                '/otp-verification?email=${Uri.encodeComponent(_emailController.text.trim())}&role=student',
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text('Login Failed: $e'),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
+                                          } finally {
+                                            if (mounted) {
+                                              setState(() {
+                                                _isLoading = false;
+                                              });
+                                            }
+                                          }
+                                        }
+                                      },
                                     ),
                                   ),
                                   const SizedBox(height: 24),
@@ -385,7 +372,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ],
             ),
           ),
-        ),
       ),
     );
   }

@@ -7,7 +7,6 @@ import '../../core/theme/app_theme.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/metamask_service.dart';
 import '../../core/providers/auth_state.dart';
-import '../../shared/animations/ambient_background.dart';
 import '../../shared/animations/breathing_card.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -124,10 +123,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
-      body: AmbientBackground(
-        child: Center(
-          child: SingleChildScrollView(
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -507,7 +505,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ],
             ),
           ),
-        ),
       ),
     );
   }

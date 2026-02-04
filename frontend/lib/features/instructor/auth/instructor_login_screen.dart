@@ -7,10 +7,14 @@ import '../../../core/services/api_service.dart';
 import '../../../core/services/metamask_service.dart';
 import '../../../core/providers/auth_state.dart';
 import 'dart:ui'; // Added for ImageFilter
-import '../../../shared/animations/ambient_background.dart';
 import '../../../shared/animations/breathing_card.dart';
 import '../../../shared/animations/ambient_background.dart';
 import '../../../shared/animations/breathing_card.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/services/audio_service.dart';
+import '../../../core/services/haptic_service.dart';
+import '../../../core/providers/user_state.dart';
+import '../../../core/constants/app_sounds.dart';
 
 class InstructorLoginScreen extends ConsumerStatefulWidget {
   const InstructorLoginScreen({super.key});
@@ -132,10 +136,9 @@ class _InstructorLoginScreenState extends ConsumerState<InstructorLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
-      body: AmbientBackground(
-        child: Center(
-          child: SingleChildScrollView(
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -354,38 +357,13 @@ class _InstructorLoginScreenState extends ConsumerState<InstructorLoginScreen> {
                                   SizedBox(
                                     width: double.infinity,
                                     height: 56,
-                                    child: ElevatedButton(
-                                      onPressed: _isLoading ? null : _login,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.orange,
-                                        foregroundColor: Colors.white,
-                                        shadowColor: Colors.orange.withOpacity(
-                                          0.5,
-                                        ),
-                                        elevation: 8,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            16,
-                                          ),
-                                        ),
-                                      ),
-                                      child: _isLoading
-                                          ? const SizedBox(
-                                              height: 24,
-                                              width: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : const Text(
-                                              'LOGIN',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                letterSpacing: 1.5,
-                                              ),
-                                            ),
+                                    child: AppButton(
+                                      label: 'LOGIN',
+                                      isLoading: _isLoading,
+                                      onPressed: _login,
+                                      color: Colors.orange,
+                                      // isPrimary: true, // Removed invalid param
+                                      type: AppButtonType.primary,
                                     ),
                                   ),
                                   const SizedBox(height: 24),
@@ -401,17 +379,21 @@ class _InstructorLoginScreenState extends ConsumerState<InstructorLoginScreen> {
                                           color: AppTheme.textGrey,
                                         ),
                                       ),
-                                      GestureDetector(
-                                        onTap: () =>
-                                            context.go('/instructor/signup'),
-                                        child: const Text(
-                                          'Sign Up',
-                                          style: TextStyle(
-                                            color: Colors.orange,
-                                            fontWeight: FontWeight.bold,
+                                        GestureDetector(
+                                          onTap: () {
+                                             final settings = ref.read(userStateProvider).settings;
+                                             if (settings.hapticFeedback) HapticService.light();
+                                             AudioService().play(SoundType.tapSecondary, settings.soundEffects);
+                                             context.go('/instructor/signup');
+                                          },
+                                          child: const Text(
+                                            'Sign Up',
+                                            style: TextStyle(
+                                              color: Colors.orange,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                 ],
@@ -428,7 +410,12 @@ class _InstructorLoginScreenState extends ConsumerState<InstructorLoginScreen> {
                 // Back to Student Login
                 Center(
                   child: TextButton.icon(
-                    onPressed: () => context.go('/login'),
+                    onPressed: () {
+                       final settings = ref.read(userStateProvider).settings;
+                       if (settings.hapticFeedback) HapticService.light();
+                       AudioService().playSound('sounds/ui_click.wav', settings.soundEffects);
+                       context.go('/login');
+                    },
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text('Back to Student Login'),
                     style: TextButton.styleFrom(
@@ -439,7 +426,6 @@ class _InstructorLoginScreenState extends ConsumerState<InstructorLoginScreen> {
               ],
             ),
           ),
-        ),
       ),
     );
   }

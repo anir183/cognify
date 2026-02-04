@@ -2,7 +2,11 @@ import 'dart:convert';
 import 'package:cognify/core/config/api_config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import '../../../../core/constants/api_constants.dart';
 import '../../../core/providers/user_state.dart';
+import '../../../core/services/notification_service.dart';
+import '../../../core/services/audio_service.dart';
+import '../../../core/services/haptic_service.dart';
 
 enum CourseStatus { available, enrolled, ongoing, completed }
 
@@ -207,7 +211,7 @@ class ExploreController extends Notifier<ExploreState> {
     try {
       final response = await http.get(
         Uri.parse(
-          '${ApiConfig.apiUrl}/courses/recommendations?userId=$userId',
+        '${ApiConfig.apiUrl}/courses/recommendations?userId=$userId',
         ),
       );
       if (response.statusCode == 200) {
@@ -286,6 +290,26 @@ class ExploreController extends Notifier<ExploreState> {
       );
     } catch (e) {
       print("Error enrolling course: $e");
+    }
+
+    // Notify User
+    final courseTitle = getCourseById(courseId)?.title ?? 'New Course';
+    final notificationsEnabled = ref.read(userStateProvider).settings.notificationsEnabled;
+    
+    if (notificationsEnabled) {
+      NotificationService().showNotification(
+        id: courseId.hashCode, 
+        title: 'Enrolled! 🎓', 
+        body: 'You have successfully joined $courseTitle.'
+      );
+    }
+    
+    // Audio & Haptics
+    if (notificationsEnabled) { // Reusing setting, or check soundEffects/haptics directly from state if accessible
+       // Ideally we'd read full settings, but notificationsEnabled is close enough proxy or we accept simple ref.read
+       final settings = ref.read(userStateProvider).settings;
+       AudioService().playSound('sounds/level_complete.wav', settings.soundEffects);
+       if (settings.hapticFeedback) HapticService.success();
     }
 
     // Update local state

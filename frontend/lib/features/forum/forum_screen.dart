@@ -82,7 +82,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen>
         .toList();
 
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/providers/user_state.dart';
 import '../../core/providers/instructor_state.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/services/haptic_service.dart';
 import 'data/forum_state.dart';
 
 class PostDetailScreen extends ConsumerStatefulWidget {
@@ -60,6 +62,20 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             authorName: authorName,
             authorEmoji: authorEmoji,
           );
+      
+      // Notify Reply
+      if (ref.read(userStateProvider).settings.notificationsEnabled) {
+         NotificationService().showNotification(
+           id: DateTime.now().millisecondsSinceEpoch % 10000, 
+           title: 'Reply Posted 💬', 
+           body: 'You replied to a comment from $_replyingToAuthor.'
+         );
+      }
+      
+      // Haptic Feedback
+      if (ref.read(userStateProvider).settings.hapticFeedback) {
+        HapticService.light();
+      }
     } else {
       ref
           .read(forumProvider.notifier)
@@ -69,6 +85,20 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             authorName: authorName,
             authorEmoji: authorEmoji,
           );
+
+      // Notify Comment
+      if (ref.read(userStateProvider).settings.notificationsEnabled) {
+         NotificationService().showNotification(
+           id: DateTime.now().millisecondsSinceEpoch % 10000, 
+           title: 'Comment Posted 📝', 
+           body: 'Your comment has been added to the discussion.'
+         );
+      }
+      
+      // Haptic Feedback
+      if (ref.read(userStateProvider).settings.hapticFeedback) {
+        HapticService.medium();
+      }
     }
 
     _commentController.clear();

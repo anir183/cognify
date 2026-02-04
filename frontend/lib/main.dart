@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/providers/user_state.dart';
+import 'core/services/notification_service.dart';
+import 'shared/widgets/global_background_wrapper.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   runApp(const ProviderScope(child: CognifyApp()));
 }
 
@@ -22,6 +26,9 @@ class CognifyApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: isDarkMode ? AppTheme.darkTheme : AppTheme.lightTheme,
       routerConfig: router,
+      builder: (context, child) {
+        return GlobalBackgroundWrapper(child: child!);
+      },
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../shared/animations/ambient_background.dart';
 import '../../../core/theme/app_theme.dart';
 
 class InstructorShell extends StatelessWidget {
@@ -10,7 +11,7 @@ class InstructorShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: navigationShell,
+      body: AmbientBackground(child: navigationShell),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppTheme.cardColor,

@@ -8,7 +8,10 @@ import '../../core/providers/gamification_state.dart';
 import '../../core/providers/auth_state.dart';
 import '../../core/theme/app_animations.dart';
 import '../../shared/animations/breathing_card.dart';
-import '../../shared/animations/ambient_background.dart';
+// import '../../shared/animations/ambient_background.dart'; // Removed (Global)
+import '../../features/gamification/widgets/achievement_badge.dart';
+import '../../shared/animations/legendary_unlock_overlay.dart';
+import '../../features/gamification/models/achievement_rarity.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -24,9 +27,8 @@ class ProfileScreen extends ConsumerWidget {
     final isInstructor = authState.role == 'instructor';
 
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
-      body: AmbientBackground(
-        child: AppAnimations.pageTransitionWrapper(
+      backgroundColor: Colors.transparent, // Transparent to show Global Background
+      body: AppAnimations.pageTransitionWrapper(
           child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -164,14 +166,21 @@ class ProfileScreen extends ConsumerWidget {
                         itemCount: achievements.length,
                         itemBuilder: (context, index) {
                           final achievement = achievements[index];
-                          return _achievementBadge(
-                            achievement.emoji,
-                            achievement.name,
-                            achievement.isUnlocked
-                                ? _getAchievementColor(achievement.category)
-                                : Colors.grey,
-                            isLocked: !achievement.isUnlocked,
-                            requirement: achievement.requirement,
+                          return GestureDetector(
+                            onTap: () {
+                              if (achievement.isUnlocked && achievement.rarity == AchievementRarity.legendary) {
+                                // Demo: Trigger Legendary Animation on tap
+                                showDialog(
+                                  context: context,
+                                  barrierColor: Colors.transparent,
+                                  builder: (_) => LegendaryUnlockOverlay(
+                                    achievement: achievement,
+                                    onDismiss: () => Navigator.pop(context),
+                                  ),
+                                );
+                              }
+                            },
+                            child: AchievementBadge(achievement: achievement),
                           );
                         },
                       ),
@@ -302,7 +311,6 @@ class ProfileScreen extends ConsumerWidget {
             ],
           ),
         ),
-        ),
       ),
     );
   }
@@ -364,82 +372,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  Color _getAchievementColor(String category) {
-    switch (category) {
-      case 'battles':
-        return Colors.amber;
-      case 'learning':
-        return Colors.orange;
-      case 'courses':
-        return Colors.green;
-      case 'social':
-        return AppTheme.accentPurple;
-      default:
-        return AppTheme.primaryCyan;
-    }
-  }
 
-  Widget _achievementBadge(
-    String emoji,
-    String label,
-    Color color, {
-    bool isLocked = false,
-    String requirement = '',
-  }) {
-    return Tooltip(
-      message: isLocked ? 'Locked: $requirement' : 'Unlocked!',
-      child: Container(
-        width: 85,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: color.withOpacity(isLocked ? 0.05 : 0.15),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(isLocked ? 0.2 : 0.4)),
-        ),
-        child: Stack(
-          children: [
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  emoji,
-                  style: TextStyle(
-                    fontSize: 28,
-                    color: isLocked ? Colors.grey : null,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      color: isLocked ? Colors.grey : color,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            if (isLocked)
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Icon(
-                  Icons.lock,
-                  size: 14,
-                  color: Colors.grey.withOpacity(0.7),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _statCard(String label, String value, IconData icon, Color color) {
     return Container(

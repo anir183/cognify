@@ -8,6 +8,12 @@ import '../../core/services/api_service.dart';
 import '../../core/providers/user_state.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../battle/widgets/card_deck.dart';
+import '../battle/widgets/battle_arena.dart';
+import '../battle/widgets/battle_effect_overlay.dart';
+import '../../core/services/audio_service.dart';
+import '../../core/services/haptic_service.dart';
+import '../battle/widgets/boss_hp_bar.dart';
+import '../battle/widgets/cinematic_boss_visuals.dart';
 
 // Models
 class CourseLevel {
@@ -107,6 +113,9 @@ class _LessonScreenState extends ConsumerState<LessonScreen>
   bool _isLoading = true;
   bool _battleComplete = false;
   Map<String, dynamic>? _completionResult;
+  int _comboStreak = 0;
+  bool _lastHitCritical = false;
+  bool _takeDamage = false;
 
   @override
   void initState() {
@@ -165,6 +174,42 @@ class _LessonScreenState extends ConsumerState<LessonScreen>
     }
   }
 
+  void _fireProjectile(int selectedIndex, bool isCorrect) {
+    // This method would typically trigger a visual animation in BattleArena
+    // and then call _playFeedback. For now, we'll just call _playFeedback directly.
+    if (isCorrect) {
+      setState(() {
+        _comboStreak++;
+        _lastHitCritical = true;
+        _takeDamage = true;
+      });
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _takeDamage = false);
+      });
+      _playFeedback(true);
+    } else {
+      setState(() {
+        _comboStreak = 0;
+        _lastHitCritical = false;
+      });
+      // Wrong Answer Sound/Haptic
+      _playFeedback(false);
+    }
+  }
+
+  void _playFeedback(bool isCorrect) {
+    // Read settings from UserState (we read it once here or pass it in)
+    final settings = ref.read(userStateProvider).settings;
+
+    if (isCorrect) {
+      AudioService().playSound('sounds/laser_shoot.wav', settings.soundEffects);
+      if (settings.hapticFeedback) HapticService.light();
+    } else {
+      AudioService().playSound('sounds/error.wav', settings.soundEffects);
+      if (settings.hapticFeedback) HapticService.error();
+    }
+  }
+
   Future<void> _submitBattle() async {
     setState(() => _isLoading = true);
 
@@ -184,6 +229,10 @@ class _LessonScreenState extends ConsumerState<LessonScreen>
         'answers': answers,
         'timeTakenSeconds': 120,
       });
+
+      // Victory Sound
+      AudioService().playSound('sounds/level_complete.wav', userState.settings.soundEffects);
+      if (userState.settings.hapticFeedback) HapticService.success();
 
       setState(() {
         _battleComplete = true;
@@ -217,6 +266,9 @@ class _LessonScreenState extends ConsumerState<LessonScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Watch user settings for potential dynamic changes (e.g., turning sound off mid-level)
+    final userSettings = ref.watch(userStateProvider).settings;
+
     if (_isLoading && _level == null) {
       return Scaffold(
         backgroundColor: AppTheme.bgBlack,
@@ -407,13 +459,78 @@ class _LessonScreenState extends ConsumerState<LessonScreen>
 
     final question = _questions[_currentQuestionIndex];
     final selectedAnswer = _userAnswers[question.id];
+    
+    // Calculate Battle State
+    final int totalHp = _questions.fold(0, (sum, q) => sum + q.points);
+    // XP gained so far (based on passed questions presumably, or just simulate based on index)
+    // Here we estimate damage based on completed questions (assuming all prior correct or we track damage differently)
+    // Simple logic: Boss HP = Total Points - (Correct Answers * Points)
+    // But we don't track correctness per question easily here without iterating _userAnswers
+    int damageDealt = 0;
+    _userAnswers.forEach((qId, index) {
+      final q = _questions.firstWhere((element) => element.id == qId, orElse: () => _questions[0]);
+      if (q.correctIndex == index) {
+         damageDealt += q.points;
+      }
+    });
 
-    return Padding(
+    final int currentBossHp = totalHp - damageDealt;
+    final double hpPercent = totalHp > 0 ? currentBossHp / totalHp : 0.0;
+    final bool isPhase2 = hpPercent < 0.5;
+    // Low spec check
+    final isLowSpec = MediaQuery.of(context).disableAnimations;
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Progress indicator
+          // Boss Visuals Area
+          BossHpBar(currentHp: currentBossHp, maxHp: totalHp),
+          const SizedBox(height: 20),
+          
+          SizedBox(
+            height: 200, // Fixed height for boss area
+            child: Center(
+              child: CinematicBossVisuals(
+                isPhase2: isPhase2,
+                isDead: false, // Only dead when result screen shows
+                takeDamage: _takeDamage,
+                isLowSpec: isLowSpec,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        Colors.red.shade800,
+                        Colors.red.shade900,
+                        Colors.black,
+                      ],
+                      stops: const [0.0, 0.6, 1.0],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.red.withOpacity(0.6),
+                        blurRadius: 30,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.bug_report,
+                    size: 50,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 10),
+
+          // Progress & XP
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -455,6 +572,7 @@ class _LessonScreenState extends ConsumerState<LessonScreen>
 
           // Question
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: AppTheme.cardColor,
@@ -468,13 +586,17 @@ class _LessonScreenState extends ConsumerState<LessonScreen>
           const SizedBox(height: 20),
 
           // Card Deck Options
-          Expanded(
+          SizedBox(
+            height: 300, // Ensure card deck has height
             child: CardDeck(
               options: question.options,
               onSelect: (index) {
                 _selectAnswer(question.id, index);
+                // Fire Visuals
+                final isCorrect = index == question.correctIndex;
+                _fireProjectile(index, isCorrect);
                 // Auto-proceed after short delay
-                Future.delayed(const Duration(milliseconds: 800), () {
+                Future.delayed(const Duration(milliseconds: 1200), () {
                   if (mounted && _userAnswers[question.id] != null) {
                     _nextQuestion();
                   }

@@ -17,7 +17,7 @@ class ExploreScreen extends ConsumerWidget {
     final filters = ['All', 'Enrolled', 'Ongoing', 'Completed'];
 
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

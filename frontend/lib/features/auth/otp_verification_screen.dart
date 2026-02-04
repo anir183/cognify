@@ -174,50 +174,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // Animated background circles
-          Positioned(
-            top: -100,
-            right: -100,
-            child:
-                Container(
-                      height: 350,
-                      width: 350,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            AppTheme.primaryCyan.withOpacity(0.4),
-                            AppTheme.primaryCyan.withOpacity(0.1),
-                          ],
-                        ),
-                      ),
-                    )
-                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .moveY(begin: 0, end: 20, duration: 4.seconds),
-          ),
-          Positioned(
-            bottom: -80,
-            left: -80,
-            child:
-                Container(
-                      height: 280,
-                      width: 280,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            AppTheme.accentPurple.withOpacity(0.4),
-                            AppTheme.accentPurple.withOpacity(0.1),
-                          ],
-                        ),
-                      ),
-                    )
-                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .moveX(begin: 0, end: -15, duration: 3.seconds),
-          ),
+          // Background blobs removed to use Global Background
           // Main content
           Center(
             child: SingleChildScrollView(

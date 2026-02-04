@@ -6,6 +6,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/instructor_state.dart';
 import '../../../core/providers/user_state.dart';
 import '../../../core/providers/auth_state.dart';
+import '../../../core/services/audio_service.dart';
+import '../../../core/constants/app_sounds.dart';
 import '../screens/instructor_analytics_screen.dart';
 
 class InstructorDashboardScreen extends ConsumerWidget {
@@ -20,7 +22,7 @@ class InstructorDashboardScreen extends ConsumerWidget {
     // Show loading state if auth data is not ready
     if (authState.walletAddress == null || authState.walletAddress!.isEmpty) {
       return Scaffold(
-        backgroundColor: AppTheme.bgBlack,
+        backgroundColor: Colors.transparent,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -45,7 +47,7 @@ class InstructorDashboardScreen extends ConsumerWidget {
     // Commented out to avoid infinite loops, relying on the one-time fetch in notifier constructor.
 
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -198,7 +200,10 @@ class InstructorDashboardScreen extends ConsumerWidget {
                       Icons.add_circle_outline,
                       'Create Course',
                       Colors.orange,
-                      () => context.go('/instructor/courses'),
+                      () {
+                         AudioService().play(SoundType.tapSecondary, userState.settings.soundEffects);
+                         context.go('/instructor/courses');
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -208,7 +213,10 @@ class InstructorDashboardScreen extends ConsumerWidget {
                       Icons.quiz_outlined,
                       'Add Questions',
                       Colors.purple,
-                      () => context.go('/instructor/editor'),
+                      () {
+                         AudioService().play(SoundType.tapSecondary, userState.settings.soundEffects);
+                         context.go('/instructor/editor');
+                      },
                     ),
                   ),
                 ],
@@ -224,6 +232,7 @@ class InstructorDashboardScreen extends ConsumerWidget {
                       'Trust & Reputation',
                       const Color(0xFF10B981),
                       () {
+                        AudioService().play(SoundType.tapSecondary, userState.settings.soundEffects);
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => InstructorAnalyticsScreen(

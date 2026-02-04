@@ -104,7 +104,7 @@ class _InstructorCertificatesScreenState
     final certCount = ref.watch(instructorStateProvider).certificates.length;
 
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

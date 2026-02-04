@@ -6,10 +6,12 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/metamask_service.dart';
 import '../../../core/providers/auth_state.dart';
+import '../../../core/providers/user_state.dart';
+import '../../../core/services/audio_service.dart';
+import '../../../core/constants/app_sounds.dart';
 import 'dart:ui'; // Added for ImageFilter
 import '../../../shared/animations/ambient_background.dart';
 import '../../../shared/animations/breathing_card.dart';
-import '../../../shared/animations/ambient_background.dart';
 import '../../../shared/animations/breathing_card.dart';
 
 class InstructorSignupScreen extends ConsumerStatefulWidget {
@@ -61,6 +63,10 @@ class _InstructorSignupScreenState
 
       if (result['success'] == true) {
         if (mounted) {
+          // Play success sound
+          final settings = ref.read(userStateProvider).settings;
+          AudioService().play(SoundType.submit, settings.soundEffects);
+          
           context.go(
             '/otp-verification?email=${Uri.encodeComponent(_emailController.text.trim())}&role=instructor',
           );
@@ -138,10 +144,9 @@ class _InstructorSignupScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bgBlack,
-      body: AmbientBackground(
-        child: Center(
-          child: SingleChildScrollView(
+      backgroundColor: Colors.transparent,
+      body: Center(
+        child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -379,8 +384,11 @@ class _InstructorSignupScreenState
                                         ),
                                       ),
                                       GestureDetector(
-                                        onTap: () =>
-                                            context.go('/instructor/login'),
+                                        onTap: () {
+                                            final settings = ref.read(userStateProvider).settings;
+                                            AudioService().play(SoundType.tapSecondary, settings.soundEffects);
+                                            context.go('/instructor/login');
+                                        },
                                         child: const Text(
                                           'Login',
                                           style: TextStyle(
@@ -416,7 +424,6 @@ class _InstructorSignupScreenState
               ],
             ),
           ),
-        ),
       ),
     );
   }
