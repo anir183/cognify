@@ -85,7 +85,7 @@ The solution leverages **Google technologies** alongside modern web tooling for 
 - **Live MVP**  
   https://cognify.localplayer.dev 
 
-- **Demo Video (3 min)**  
+- **Demo Video (5-6 min)**  
   https://youtu.be/e-fM7EHOIu0 
 
 ---
