@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> This is the state of the project when the prototype was submitted to the GDG 
+> Tech Sprint Hackathon, for which we won the Second Prize and title "Exceptional
+> Technical Complexity."
+
 # Cognify 🎓🧠  
 **AI-Powered Personalized & Gamified Learning Platform**
 
@@ -83,7 +88,7 @@ The solution leverages **Google technologies** alongside modern web tooling for 
   https://github.com/U9D3RTAK3R/Cognify  
 
 - **Live MVP**  
-  https://cognify-deploy.vercel.app  
+  NO LONGER WORKS: https://cognify-deploy.vercel.app  
 
 - **Demo Video (3 min)**  
   https://youtu.be/qfJpO4ETuLw  
@@ -94,6 +99,7 @@ The solution leverages **Google technologies** alongside modern web tooling for 
 
 - **Team Name:** CacheCrew  
 - **Team Leader:** Aritra Saha  
+- **Members:** Anirban RoyChowdhury, Sinchan Bhattacharjee
 - **Domain:** AI · EdTech  
 - **Problem Statement:** Open Innovation  
 
