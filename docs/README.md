@@ -1,3 +1,7 @@
+> [!IMPORTANT]
+> This is the state of the project when the prototype was submitted to Samarth's 
+> Tech Innovathon, for which we won the First Prize.
+
 # Cognify 🎓🧠  
 **AI-Powered Personalized & Gamified Learning Platform**
 
